@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Alert } from 'react-native';
 import { theme } from '../../styles/theme';
+import { jstDateString } from '../../utils/time';
 import DatabaseService from '../../services/DatabaseService';
 import { UserProfile } from '../../models/UserModel';
 import { OnboardingScreen } from '../../components/OnboardingScreen';
@@ -77,13 +78,13 @@ export const HomeScreen: React.FC = () => {
       const [todayCount, yDone, startDate] = await Promise.all([
         DatabaseService.getTodaysTasksCount().catch(() => 0),
         DatabaseService.getYesterdayCompletedCount().catch(() => 0),
-        DatabaseService.getAppStartDate().catch(() => new Date().toISOString().split('T')[0])
+        DatabaseService.getAppStartDate().catch(() => jstDateString())
       ]);
 
       // 経過日数
       let daysSince = 0;
       try {
-        const s = new Date(startDate);
+  const s = new Date(startDate);
         daysSince = Math.max(0, Math.floor((now.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1);
       } catch {}
 

@@ -7,6 +7,7 @@ import { Task } from '../models/TaskModel';
 import { UserProfile } from '../models/UserModel';
 import { QuestList } from '../components/QuestList';
 import { useFocusEffect } from '@react-navigation/native';
+import { jstDateString } from '../utils/time';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -68,9 +69,11 @@ export default function TasksScreen() {
       // 文脈収集
       const recentConvs = (await DatabaseService.getRecentConversations(10)).map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
       const todayExisting = (await DatabaseService.getTodayTasks()).map(t => t.title);
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yyyymmdd = yesterday.toISOString().split('T')[0];
+  // 日本時間での昨日
+  const todayJst = jstDateString();
+  const base = new Date(`${todayJst}T00:00:00+09:00`);
+  base.setUTCDate(base.getUTCDate() - 1);
+  const yyyymmdd = jstDateString(new Date(base));
       const yCompleted = (await DatabaseService.getCompletedTasksByDate(yyyymmdd)).map(t => t.title);
 
       const concrete = await GeminiService.generateConcretePersonalizedTasks({

@@ -4,6 +4,7 @@ import { theme } from '../styles/theme';
 import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
 import { useRouter } from 'expo-router';
+import { jstDateString } from '../utils/time';
 
 interface ChatMessage {
   id: string;
@@ -42,9 +43,9 @@ export default function ChatScreen() {
     ]);
     // 夜なら日記の振り返りを提案
     (async () => {
-      const hour = new Date().getHours();
+  const hour = new Date().getHours();
       if (hour < 19) return; // 19時以降に提案
-      const today = new Date().toISOString().split('T')[0];
+  const today = jstDateString();
       try {
         const existing = await DatabaseService.getJournalByDate(today);
         if (!existing && !reflectionStarted) {
@@ -140,7 +141,7 @@ export default function ChatScreen() {
             });
           } catch {}
           // 直近のチャットからユーザー/AIの文脈を抽出
-          const todaysConversations = await DatabaseService.getTodaysConversations();
+          const todaysConversations = await DatabaseService.getTodaysConversations(jstDateString());
           const convTexts = todaysConversations.map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
           const todaysTasks = await DatabaseService.getTasks();
 
@@ -149,7 +150,7 @@ export default function ChatScreen() {
           const validEmotions = ['happy','excited','peaceful','thoughtful','grateful','determined','confident','curious','content','hopeful','sad','angry','calm','neutral'] as const;
           const emotion = (validEmotions as readonly string[]).includes(emotionRaw) ? (emotionRaw as any) : 'peaceful';
 
-          const today = new Date().toISOString().split('T')[0];
+          const today = jstDateString();
           await DatabaseService.saveJournal({
             date: today,
             title: `${today}の振り返り`,

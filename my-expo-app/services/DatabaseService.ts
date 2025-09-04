@@ -3,7 +3,8 @@ import { Journal, EmotionData } from '../models/JournalModel';
 import { UserProfile } from '../models/UserModel';
 import { Conversation } from '../models/ConversationModel';
 import { db, sqliteDb } from '../db/client';
-import { tasks, userProfiles, journals, conversations, getDayRangeISO } from '../db/schema';
+import { tasks, userProfiles, journals, conversations } from '../db/schema';
+import { jstDateString, getJstDayUtcRange } from '../utils/time';
 import { and, asc, desc, eq, gte, lte, sql, inArray } from 'drizzle-orm';
 
 class DatabaseService {
@@ -94,28 +95,32 @@ class DatabaseService {
 
   // Task operations
   async getTasks(): Promise<Task[]> {
-  const rows = await db
-    .select()
-    .from(tasks)
-    .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`)
-    .orderBy(desc(tasks.createdAt));
+    // 日本日のUTC範囲に含まれる created_at を取得
+    const { start, end } = getJstDayUtcRange();
+    const rows = await db
+      .select()
+      .from(tasks)
+      .where(and(gte(tasks.createdAt, start), lte(tasks.createdAt, end)))
+      .orderBy(desc(tasks.createdAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
   async getTodayTasks(): Promise<Task[]> {
-  const rows = await db
-    .select()
-    .from(tasks)
-    .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`)
-    .orderBy(asc(tasks.completed), desc(tasks.createdAt));
+    const { start, end } = getJstDayUtcRange();
+    const rows = await db
+      .select()
+      .from(tasks)
+      .where(and(gte(tasks.createdAt, start), lte(tasks.createdAt, end)))
+      .orderBy(asc(tasks.completed), desc(tasks.createdAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
   async getTodaysTasksCount(): Promise<number> {
-  const [row] = await db
+    const { start, end } = getJstDayUtcRange();
+    const [row] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(tasks)
-      .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`);
+      .where(and(gte(tasks.createdAt, start), lte(tasks.createdAt, end)));
     return row?.count ?? 0;
   }
 
@@ -198,40 +203,43 @@ class DatabaseService {
   }
 
   async getDailyProgress(date: string): Promise<DailyProgress> {
-  const [row] = await db
+    const { start, end } = getJstDayUtcRange(date);
+    const [row] = await db
       .select({
         totalTasks: sql<number>`COUNT(*)`,
         completedTasks: sql<number>`SUM(CASE WHEN ${tasks.completed} = 1 THEN 1 ELSE 0 END)`,
       })
       .from(tasks)
-      .where(sql`date(${tasks.createdAt}) = ${date}`);
+      .where(and(gte(tasks.createdAt, start), lte(tasks.createdAt, end)));
 
     const totalTasks = row?.totalTasks ?? 0;
     const completedTasks = row?.completedTasks ?? 0;
     const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-    
-    return {
-      date,
-      totalTasks,
-      completedTasks,
-      completionRate
-    };
+
+    return { date, totalTasks, completedTasks, completionRate };
   }
 
   async getCompletedTasksByDate(date: string): Promise<Task[]> {
-  const rows = await db
+    const { start, end } = getJstDayUtcRange(date);
+    const rows = await db
       .select()
       .from(tasks)
-  .where(sql`date(${tasks.completedAt}) = ${date} AND ${tasks.completed} = 1`)
+      .where(and(gte(tasks.completedAt, start), lte(tasks.completedAt, end), eq(tasks.completed, 1 as any)))
       .orderBy(asc(tasks.completedAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
   async getYesterdayCompletedCount(): Promise<number> {
-  const [row] = await db
+    // JSTの「昨日」のUTC範囲
+    const todayJst = jstDateString();
+    const dt = new Date(`${todayJst}T00:00:00+09:00`);
+    dt.setUTCDate(dt.getUTCDate() - 1);
+    const ymd = jstDateString(new Date(dt));
+    const { start, end } = getJstDayUtcRange(ymd);
+    const [row] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(tasks)
-  .where(sql`date(${tasks.completedAt}) = date('now','-1 day') AND ${tasks.completed} = 1`);
+      .where(and(gte(tasks.completedAt, start), lte(tasks.completedAt, end), eq(tasks.completed, 1 as any)));
     return row?.count ?? 0;
   }
 
@@ -385,8 +393,8 @@ class DatabaseService {
   }
 
   async getTodaysConversations(date?: string): Promise<Conversation[]> {
-  const targetDate = date || new Date().toISOString().split('T')[0];
-  const { start, end } = getDayRangeISO(targetDate);
+    const targetDate = date || jstDateString();
+    const { start, end } = getJstDayUtcRange(targetDate);
   const rows = await db
       .select()
       .from(conversations)
