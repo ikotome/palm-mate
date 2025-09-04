@@ -4,11 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
+import NotificationService from "../services/NotificationService";
 
 export default function RootLayout() {
   const [pressedRoute, setPressedRoute] = useState<string | null>(null);
   const [pulse, setPulse] = useState(0);
   type Effect = 'spin' | 'page' | 'pop' | 'bounce';
+
+  // 通知ハンドラ初期化（アプリ起動時）
+  useEffect(() => {
+    NotificationService.init().catch(() => {});
+  }, []);
 
   const AnimatedIcon = ({
     name,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Platform, DevSettings } from 'react-native';
 import { theme } from '../styles/theme';
 import StackChanService from '../services/StackChanService';
+import NotificationService from '../services/NotificationService';
 import DatabaseService from '../services/DatabaseService';
 import { UserProfile } from '../models/UserModel';
 
@@ -17,6 +18,14 @@ export default function SettingsScreen() {
   useEffect(() => {
     checkStackChanConnection();
     loadUserProfile();
+    // 通知の現在状態を反映
+    (async () => {
+      try {
+        await NotificationService.init();
+        const on = await NotificationService.isNightlyReminderScheduled();
+        setNotificationsEnabled(on);
+      } catch {}
+    })();
   }, []);
 
   const checkStackChanConnection = () => {
@@ -262,7 +271,14 @@ export default function SettingsScreen() {
               </View>
               <Switch
                 value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                onValueChange={async (v) => {
+                  setNotificationsEnabled(v);
+                  const ok = await NotificationService.setNightlyReminderEnabled(v, { hour: 22, minute: 0 });
+                  if (!ok) {
+                    setNotificationsEnabled(false);
+                    Alert.alert('通知が許可されていません', '設定アプリから通知を許可してください');
+                  }
+                }}
                 trackColor={{ false: '#ccc', true: '#4CAF50' }}
               />
             </View>

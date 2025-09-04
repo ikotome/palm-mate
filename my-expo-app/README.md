@@ -25,6 +25,11 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Nightly reminder (local notifications)
+
+- Settings > Notifications toggle controls a daily local notification at 22:00.
+- On first enable, the OS permission dialog appears. If denied, enable notifications from system settings.
+
 ## Get a fresh project
 
 When you're ready, run:
