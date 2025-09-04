@@ -16,7 +16,50 @@ export default function JournalDetailScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [draft, setDraft] = useState('');
   const [showDraft, setShowDraft] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // AI下書きの編集用
+  // 既存日記の編集用
+  const [isEditingEntry, setIsEditingEntry] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [editEmotion, setEditEmotion] = useState<Journal['emotion']>('peaceful');
+  const EMOTIONS: Journal['emotion'][] = [
+    'happy','excited','peaceful','thoughtful','grateful','determined','confident','curious','content','hopeful','sad','angry','calm','neutral',
+  ];
+
+  const startEditExisting = useCallback(() => {
+    if (!journal) return;
+    setEditContent(journal.content);
+    setEditEmotion(journal.emotion);
+    setIsEditingEntry(true);
+  }, [journal]);
+
+  const cancelEditExisting = useCallback(() => {
+    setIsEditingEntry(false);
+    setEditContent('');
+  }, []);
+
+  const saveEditExisting = useCallback(async () => {
+    if (!date || !journal) return;
+    const content = editContent.trim();
+    if (!content) return;
+    setIsGenerating(true);
+    try {
+      const now = new Date().toISOString();
+      await DatabaseService.saveJournal({
+        date: String(date),
+        title: journal.title,
+        content,
+        emotion: editEmotion,
+        aiGenerated: false, // 手動編集
+        createdAt: journal.createdAt, // 既存の作成日時を維持
+        updatedAt: now,
+      });
+      const j = await DatabaseService.getJournalByDate(String(date));
+      setJournal(j);
+      setIsEditingEntry(false);
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [date, journal, editContent, editEmotion]);
 
   useEffect(() => {
     if (!date) return;
@@ -130,10 +173,53 @@ export default function JournalDetailScreen() {
             <View style={styles.journalCard}>
               <View style={styles.journalHeader}>
                 <Text style={styles.journalDate}>{journal.date}</Text>
-                <View style={[styles.emotionBadge, { backgroundColor: getEmotionColor(journal.emotion) }]} />
+                <View style={styles.journalHeaderRight}>
+                  <View style={[styles.emotionBadge, { backgroundColor: getEmotionColor(isEditingEntry ? editEmotion : journal.emotion) }]} />
+                  {!isEditingEntry && (
+                    <TouchableOpacity style={styles.secondaryBtnSm} onPress={startEditExisting}>
+                      <Text style={styles.secondaryBtnSmText}>編集</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <Text style={styles.journalContent}>{journal.content}</Text>
-              {journal.aiGenerated && <Text style={styles.aiLabel}>🤖 AI生成</Text>}
+
+              {isEditingEntry ? (
+                <View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emotionsRow}>
+                    {EMOTIONS.map((e) => (
+                      <TouchableOpacity
+                        key={e}
+                        style={[styles.emotionChip, e === editEmotion && styles.emotionChipActive]}
+                        onPress={() => setEditEmotion(e)}
+                      >
+                        <View style={[styles.emotionDot, { backgroundColor: getEmotionColor(e) }]} />
+                        <Text style={[styles.emotionChipText, e === editEmotion && styles.emotionChipTextActive]}>{e}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                  <TextInput
+                    style={styles.draftInput}
+                    value={editContent}
+                    onChangeText={setEditContent}
+                    multiline
+                    editable={!isGenerating}
+                    maxLength={1200}
+                  />
+                  <View style={styles.draftButtonsRow}>
+                    <TouchableOpacity style={styles.secondaryBtn} disabled={isGenerating} onPress={cancelEditExisting}>
+                      <Text style={styles.secondaryBtnText}>キャンセル</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.primaryBtn} disabled={isGenerating || !editContent.trim()} onPress={saveEditExisting}>
+                      <Text style={styles.primaryBtnText}>保存</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.journalContent}>{journal.content}</Text>
+                  {journal.aiGenerated && <Text style={styles.aiLabel}>🤖 AI生成</Text>}
+                </>
+              )}
             </View>
           ) : (
             <View style={styles.noJournalCard}>
@@ -228,4 +314,14 @@ const styles = StyleSheet.create({
   secondaryBtnText: { color: theme.colors.text, fontWeight: '600' },
   dangerBtn: { backgroundColor: '#fff1f0', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#ffccc7', marginTop: 10 },
   dangerBtnText: { color: '#d4380d', fontWeight: '600' },
+  // existing journal edit UI
+  journalHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  secondaryBtnSm: { backgroundColor: theme.colors.surface, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, marginLeft: 8 },
+  secondaryBtnSmText: { color: theme.colors.text, fontWeight: '600', fontSize: 12 },
+  emotionsRow: { gap: 8, paddingVertical: 4, paddingBottom: 8 },
+  emotionChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: theme.colors.border, marginRight: 6 },
+  emotionChipActive: { backgroundColor: theme.colors.text + '11', borderColor: theme.colors.text },
+  emotionChipText: { color: theme.colors.subtext, textTransform: 'capitalize' },
+  emotionChipTextActive: { color: theme.colors.text, fontWeight: '700' },
+  emotionDot: { width: 10, height: 10, borderRadius: 5 },
 });
