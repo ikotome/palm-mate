@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { Text, Platform } from "react-native";
 import { theme } from "../styles/theme";
 
 export default function RootLayout() {
@@ -9,21 +9,17 @@ export default function RootLayout() {
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.subtext,
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          height: 64,
-          paddingBottom: 8,
+          height: Platform.OS === 'ios' ? 92 : 80,
+          paddingBottom: Platform.OS === 'ios' ? 18 : 12,
           paddingTop: 8,
           backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
           borderTopColor: theme.colors.border,
         },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
-        },
         tabBarIconStyle: {
-          marginBottom: -2,
+          marginBottom: 0,
         },
       }}>
       <Tabs.Screen
@@ -31,7 +27,7 @@ export default function RootLayout() {
         options={{
           title: 'ホーム',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 20 }}>🏠</Text>
+            <Text style={{ fontSize: focused ? 24 : 22 }}>🏠</Text>
           ),
         }}
       />
@@ -40,7 +36,7 @@ export default function RootLayout() {
         options={{
           title: '日記',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 20 }}>📖</Text>
+            <Text style={{ fontSize: focused ? 24 : 22 }}>📖</Text>
           ),
         }}
       />
@@ -56,7 +52,7 @@ export default function RootLayout() {
         options={{
           title: 'タスク',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 20 }}>✅</Text>
+            <Text style={{ fontSize: focused ? 24 : 22 }}>✅</Text>
           ),
         }}
       />
@@ -65,13 +61,19 @@ export default function RootLayout() {
         options={{
           title: '設定',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 20 }}>⚙️</Text>
+            <Text style={{ fontSize: focused ? 24 : 22 }}>⚙️</Text>
           ),
         }}
       />
       {/* タブには出さないチャット画面（プッシュ遷移のみ） */}
       <Tabs.Screen
         name="chat"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="screens/HomeScreen"
         options={{
           href: null,
         }}
