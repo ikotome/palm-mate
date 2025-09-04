@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, InteractionManager, Modal, Pressable } from 'react-native';
 import { theme } from '../../styles/theme';
 import DatabaseService from '../../services/DatabaseService';
 import GeminiService from '../../services/GeminiService';
@@ -18,6 +18,8 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'incomplete' | 'completed'>('all');
   const [sort, setSort] = useState<'priority' | 'due' | 'created'>('priority');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   useEffect(() => {
     loadTasks();
@@ -206,6 +208,13 @@ export default function TasksScreen() {
     return sortTasks(arr);
   }, [tasks, filter, sortTasks]);
 
+  const filterLabel = useMemo(() => (
+    filter === 'all' ? 'すべて' : filter === 'incomplete' ? '未完了' : '完了'
+  ), [filter]);
+  const sortLabel = useMemo(() => (
+    sort === 'priority' ? '優先度' : sort === 'due' ? '期限' : '作成順'
+  ), [sort]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -215,6 +224,7 @@ export default function TasksScreen() {
 
       <ScrollView 
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -239,41 +249,75 @@ export default function TasksScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* フィルタ/ソート */}
-        <View style={styles.filtersRow}>
-          <View style={styles.chipsGroup}>
-            {([
-              { key: 'all', label: 'すべて' },
-              { key: 'incomplete', label: '未完了' },
-              { key: 'completed', label: '完了' },
-            ] as const).map((c) => (
-              <TouchableOpacity
-                key={c.key}
-                onPress={async () => { setFilter(c.key); await Haptics.selectionAsync(); }}
-                style={[styles.chip, filter === c.key && styles.chipActive]}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Text style={[styles.chipText, filter === c.key && styles.chipTextActive]}>{c.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.chipsGroup}>
-            {([
-              { key: 'priority', label: '優先度' },
-              { key: 'due', label: '期限' },
-              { key: 'created', label: '作成順' },
-            ] as const).map((c) => (
-              <TouchableOpacity
-                key={c.key}
-                onPress={async () => { setSort(c.key); await Haptics.selectionAsync(); }}
-                style={[styles.chip, sort === c.key && styles.chipActive]}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <Text style={[styles.chipText, sort === c.key && styles.chipTextActive]}>{c.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        {/* フィルタ/ソート（中央揃えドロップダウン） */}
+        <View style={styles.filterBar}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={async () => { setShowFilterMenu(true); await Haptics.selectionAsync(); }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Text style={styles.menuButtonText}>フィルター: {filterLabel} ▼</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={async () => { setShowSortMenu(true); await Haptics.selectionAsync(); }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Text style={styles.menuButtonText}>ソート: {sortLabel} ▼</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* フィルタメニュー */}
+        <Modal transparent visible={showFilterMenu} animationType="fade" onRequestClose={() => setShowFilterMenu(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowFilterMenu(false)}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>フィルター</Text>
+              {([
+                { key: 'all', label: 'すべて' },
+                { key: 'incomplete', label: '未完了' },
+                { key: 'completed', label: '完了' },
+              ] as const).map((c) => (
+                <TouchableOpacity
+                  key={c.key}
+                  style={[styles.modalOption, filter === c.key && styles.modalOptionActive]}
+                  onPress={async () => {
+                    setFilter(c.key);
+                    await Haptics.selectionAsync();
+                    setShowFilterMenu(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+
+        {/* ソートメニュー */}
+        <Modal transparent visible={showSortMenu} animationType="fade" onRequestClose={() => setShowSortMenu(false)}>
+          <Pressable style={styles.modalOverlay} onPress={() => setShowSortMenu(false)}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>ソート</Text>
+              {([
+                { key: 'priority', label: '優先度' },
+                { key: 'due', label: '期限' },
+                { key: 'created', label: '作成順' },
+              ] as const).map((c) => (
+                <TouchableOpacity
+                  key={c.key}
+                  style={[styles.modalOption, sort === c.key && styles.modalOptionActive]}
+                  onPress={async () => {
+                    setSort(c.key);
+                    await Haptics.selectionAsync();
+                    setShowSortMenu(false);
+                  }}
+                >
+                  <Text style={styles.modalOptionText}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
 
         {userProfile && (
           <View style={styles.goalSection}>
@@ -309,18 +353,22 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, textAlign: 'center' },
   headerSubtitle: { fontSize: 14, color: theme.colors.subtext, textAlign: 'center', marginTop: 4 },
   content: { flex: 1, padding: 15 },
+  contentContainer: { paddingBottom: 120 },
   actionSection: { marginBottom: 20 },
   generateButton: { backgroundColor: theme.colors.text, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', shadowColor: 'transparent' },
   generateButtonDisabled: { backgroundColor: '#ccc' },
   generateButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' },
   pruneButton: { backgroundColor: theme.colors.muted, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: theme.colors.border },
   pruneButtonText: { color: theme.colors.text, fontSize: 14, fontWeight: '600' },
-  filtersRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 },
-  chipsGroup: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { backgroundColor: theme.colors.muted, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: theme.colors.border },
-  chipActive: { backgroundColor: theme.colors.accent },
-  chipText: { color: theme.colors.text, fontSize: 12, fontWeight: '600' },
-  chipTextActive: { color: theme.colors.surface },
+  filterBar: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  menuButton: { backgroundColor: theme.colors.muted, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: theme.colors.border, marginHorizontal: 6 },
+  menuButtonText: { color: theme.colors.text, fontSize: 13, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalCard: { width: '100%', maxWidth: 360, backgroundColor: theme.colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: theme.colors.border },
+  modalTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10 },
+  modalOption: { paddingVertical: 10, paddingHorizontal: 8, borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.muted },
+  modalOptionActive: { backgroundColor: theme.colors.accent },
+  modalOptionText: { color: theme.colors.text, fontSize: 14, fontWeight: '600' },
   section: { marginBottom: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 12 },
   goalSection: { marginTop: 20, marginBottom: 30 },
