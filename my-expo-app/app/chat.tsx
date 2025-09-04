@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
+import { useRouter } from 'expo-router';
 
 interface ChatMessage {
   id: string;
@@ -11,6 +12,7 @@ interface ChatMessage {
 }
 
 export default function ChatScreen() {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -164,6 +166,8 @@ export default function ChatScreen() {
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, doneMsg]);
+          // 保存後に当日のジャーナル画面へ遷移
+          router.push(`/journal/${today}`);
         } catch (e) {
           const errMsg: ChatMessage = {
             id: (Date.now() + 4).toString(),
