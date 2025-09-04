@@ -238,14 +238,15 @@ export default function JournalSummaryScreen() {
             {visibleDateRange.map((date, index) => {
               const count = dailyCounts[date] ?? 0;
               const hasJournal = journalDates.has(date);
-              const color = getCellColor(date, count);
+      // 日記がある日は色の表現として +1 カウント
+      const effectiveCount = count + (hasJournal ? 1 : 0);
+      const color = getCellColor(date, effectiveCount);
               return (
                 <TouchableOpacity
                   key={date}
                   style={[
                     styles.heatmapCell,
-                    { backgroundColor: color },
-                    hasJournal ? styles.heatmapCellWithJournal : null,
+        { backgroundColor: color },
                   ]}
                   onPress={() => handleCellPress(date)}
                   onLongPress={() => handleCellLongPress(date, count, hasJournal, index)}
@@ -283,7 +284,6 @@ const styles = StyleSheet.create({
   heatmapContainer: { flex: 1 },
   heatmapGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   heatmapCell: { width: 22, height: 22, borderRadius: 4 },
-  heatmapCellWithJournal: { borderWidth: 2, borderColor: theme.colors.text },
   tooltip: { position: 'absolute', zIndex: 10, minWidth: 140, maxWidth: 220 },
   tooltipInner: {
     flexDirection: 'row',

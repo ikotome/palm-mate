@@ -133,7 +133,7 @@ export default function SettingsScreen() {
     const run = async () => {
       try {
         await DatabaseService.initializeDatabase();
-        const { tasks, journals } = await DatabaseService.seedDummyData(30);
+        const { tasks, journals } = await DatabaseService.seedDummyData(360);
         Alert.alert('完了', `ダミーデータを作成しました\nタスク: ${tasks} 件\n日記: ${journals} 件`);
       } catch (e) {
         console.error(e);
@@ -143,7 +143,7 @@ export default function SettingsScreen() {
 
     Alert.alert(
       'ダミーデータ生成',
-      '過去30日分のタスクと日記をランダムに作成します。既存の同日日記は上書きされます。よろしいですか？',
+      '過去360日分のタスクと日記をランダムに作成します。既存の同日日記は上書きされます。よろしいですか？',
       [
         { text: 'キャンセル', style: 'cancel' },
         { text: '実行', style: 'default', onPress: run },
@@ -281,21 +281,7 @@ export default function SettingsScreen() {
               style={styles.debugButton} 
               onPress={seedDummyLast30Days}
             >
-              <Text style={styles.debugButtonText}>🧪 過去30日ダミーデータ生成</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.debugButton} 
-              onPress={() => Alert.alert('開発中', 'この機能は開発中です')}
-            >
-              <Text style={styles.debugButtonText}>📊 ログ確認</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.debugButton} 
-              onPress={() => Alert.alert('開発中', 'この機能は開発中です')}
-            >
-              <Text style={styles.debugButtonText}>🔄 キャッシュクリア</Text>
+              <Text style={styles.debugButtonText}>🧪 過去360日ダミーデータ生成</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -306,7 +292,7 @@ export default function SettingsScreen() {
             Made with ❤️ for your growth
           </Text>
           <Text style={styles.footerSubtext}>
-            あなたの成長に寄り添うパートナーとして
+            PalmMateチームより愛を込めて。
           </Text>
         </View>
       </ScrollView>
