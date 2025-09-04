@@ -7,11 +7,12 @@ interface QuestListProps {
   tasks: Task[];
   onToggleTask: (taskId: number) => void;
   dreamSelf?: string;
+  variant?: 'drawer' | 'page';
 }
 
 const { height } = Dimensions.get('window');
 
-export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dreamSelf }) => {
+export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dreamSelf, variant = 'drawer' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
 
@@ -30,6 +31,69 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
   const completedTasks = tasks.filter(task => task.completed);
   const incompleteTasks = tasks.filter(task => !task.completed);
 
+  if (variant === 'page') {
+    // ページ表示: 絶対配置やドロワーではなく、通常のレイアウトで一覧を表示
+    if (tasks.length === 0) {
+      return (
+        <View style={styles.pageEmptyContainer}>
+          <Text style={styles.emptyEmoji}>📝</Text>
+          <Text style={styles.emptyText}>今日のクエストはまだありません</Text>
+          <Text style={styles.emptySubtext}>上の「新しいタスクを生成」を押してみましょう</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.pageContainer}>
+        <View style={styles.pageHeader}>
+          <Text style={styles.drawerTitle}>今日のクエスト一覧</Text>
+          {dreamSelf && (
+            <Text style={styles.dreamText} numberOfLines={1}>
+              目標: {dreamSelf}
+            </Text>
+          )}
+        </View>
+
+        {/* 未完了タスク */}
+        {incompleteTasks.length > 0 && (
+          <View style={styles.taskSection}>
+            <Text style={styles.sectionTitle}>
+              🎯 やること ({incompleteTasks.length}個)
+            </Text>
+            <FlatList
+              data={incompleteTasks}
+              keyExtractor={(item) => `incomplete-${item.id}`}
+              renderItem={({ item }) => (
+                <QuestItem task={item} onToggle={onToggleTask} />
+              )}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
+
+        {/* 完了済みタスク */}
+        {completedTasks.length > 0 && (
+          <View style={styles.taskSection}>
+            <Text style={styles.sectionTitle}>
+              ✅ 完了済み ({completedTasks.length}個)
+            </Text>
+            <FlatList
+              data={completedTasks}
+              keyExtractor={(item) => `completed-${item.id}`}
+              renderItem={({ item }) => (
+                <QuestItem task={item} onToggle={onToggleTask} />
+              )}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  // 以降はドロワー表示
   if (tasks.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -161,6 +225,19 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
 };
 
 const styles = StyleSheet.create({
+  // Page variant styles
+  pageContainer: {
+    backgroundColor: 'transparent',
+  },
+  pageHeader: {
+    marginBottom: 10,
+  },
+  pageEmptyContainer: {
+    alignItems: 'center',
+    padding: 30,
+    backgroundColor: 'white',
+    borderRadius: 16,
+  },
   summaryContainer: {
     position: 'absolute',
     bottom: 0,

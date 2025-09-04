@@ -213,6 +213,33 @@ AIと会話しながら、自分の考えを整理できたのも良かったで
 
 明日も今日の気持ちを大切に、一歩ずつ前進していきたいと思います。`;
   }
+
+  async generateChatResponse(userMessage: string, context: string = ''): Promise<string> {
+    if (!this.genAI) {
+      return this.getSampleChatResponse(userMessage);
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `あなたは優しいライフコーチです。以下の文脈を参考に、ユーザーのメッセージに短く親身に返信してください。最大で2-3文。
+
+【文脈】
+${context}
+
+【ユーザーのメッセージ】
+${userMessage}`;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      return response.text().trim();
+    } catch (e) {
+      console.error('Error generating chat response:', e);
+      return this.getSampleChatResponse(userMessage);
+    }
+  }
+
+  private getSampleChatResponse(userMessage: string): string {
+    return `なるほど。「${userMessage}」について考えているんですね。無理せず、一歩ずつ進めていきましょう。できそうな最初の小さな一歩は何でしょう？`;
+  }
 }
 
 export default new GeminiService();

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import DatabaseService from '../services/DatabaseService';
-import GeminiService, { PersonalizedTask } from '../services/GeminiService';
+import GeminiService from '../services/GeminiService';
 import { Task } from '../models/TaskModel';
 import { UserProfile } from '../models/UserModel';
 import { QuestList } from '../components/QuestList';
@@ -116,36 +116,6 @@ export default function TasksScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 進行中のタスク */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 進行中 ({incompleteTasks.length})</Text>
-          {incompleteTasks.length > 0 ? (
-            <QuestList 
-              tasks={incompleteTasks} 
-              onToggleTask={handleTaskToggle}
-              dreamSelf={userProfile?.dreamSelf}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>🎉</Text>
-              <Text style={styles.emptyStateTitle}>全てのタスク完了！</Text>
-              <Text style={styles.emptyStateSubtitle}>新しいタスクを生成してみましょう</Text>
-            </View>
-          )}
-        </View>
-
-        {/* 完了済みタスク */}
-        {completedTasks.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>✅ 完了済み ({completedTasks.length})</Text>
-            <QuestList 
-              tasks={completedTasks} 
-              onToggleTask={handleTaskToggle}
-              dreamSelf={userProfile?.dreamSelf}
-            />
-          </View>
-        )}
-
         {/* ユーザー目標表示 */}
         {userProfile && (
           <View style={styles.goalSection}>
@@ -158,6 +128,16 @@ export default function TasksScreen() {
             </View>
           </View>
         )}
+        {/* 今日のクエスト一覧（ページ表示） */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 今日のクエスト</Text>
+          <QuestList
+            tasks={tasks}
+            onToggleTask={handleTaskToggle}
+            dreamSelf={userProfile?.dreamSelf}
+            variant="page"
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -186,8 +166,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   content: {
-    flex: 1,
-    padding: 15,
+  flex: 1,
+  padding: 15,
   },
   actionSection: {
     marginBottom: 20,
@@ -220,27 +200,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
-  },
-  emptyState: {
-    backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 48,
-    marginBottom: 15,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
   },
   goalSection: {
     marginTop: 20,
