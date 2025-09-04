@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
 import NotificationService from "../services/NotificationService";
+import { registerNightlyJob } from "../background/BackgroundJobs";
 
 export default function RootLayout() {
   const [pressedRoute, setPressedRoute] = useState<string | null>(null);
@@ -15,6 +16,8 @@ export default function RootLayout() {
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
       NotificationService.init().catch(() => {});
+  // バックグラウンドの夜間ジョブを登録
+  registerNightlyJob().catch(() => {});
     });
     return () => task.cancel?.();
   }, []);

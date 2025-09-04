@@ -115,7 +115,7 @@ class StackChanService {
     }
 
     try {
-      const response = await this.fetchWithTimeout(`${this.baseUrl}/speak`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/speech`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

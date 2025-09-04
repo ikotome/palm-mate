@@ -11,6 +11,10 @@ const config: ExpoConfig = {
   newArchEnabled: true,
   ios: {
     supportsTablet: true,
+    // iOSでBackgroundFetchを有効化（TaskManager経由で利用）
+    infoPlist: {
+      UIBackgroundModes: ['fetch'],
+    },
   },
   android: {
     adaptiveIcon: {
@@ -30,6 +34,8 @@ const config: ExpoConfig = {
     'expo-router',
   // Push notifications (required for native config in dev/prod builds)
   'expo-notifications',
+  // SecureStore ネイティブ設定
+  'expo-secure-store',
     [
       'expo-splash-screen',
       {
