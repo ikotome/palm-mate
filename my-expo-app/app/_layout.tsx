@@ -239,6 +239,12 @@ export default function RootLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="screens/HomeScreen"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
