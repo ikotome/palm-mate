@@ -258,6 +258,35 @@ class DatabaseService {
     };
   }
 
+  /**
+   * アプリ開始日（最初にデータが作られた日）を返す。
+   * user_profiles.created_at, tasks.created_at, journals.created_at, conversations.timestamp の最小を採用。
+   * データがなければ今日の日付（YYYY-MM-DD）。
+   */
+  async getAppStartDate(): Promise<string> {
+    const [t, u, j, c] = await Promise.all([
+      db.select({ min: sql<string>`MIN(${tasks.createdAt})` }).from(tasks),
+      db.select({ min: sql<string>`MIN(${userProfiles.createdAt})` }).from(userProfiles),
+      db.select({ min: sql<string>`MIN(${journals.createdAt})` }).from(journals),
+      db.select({ min: sql<string>`MIN(${conversations.timestamp})` }).from(conversations),
+    ]);
+
+    const dates = [t?.[0]?.min, u?.[0]?.min, j?.[0]?.min, c?.[0]?.min].filter(Boolean) as string[];
+    if (dates.length === 0) return new Date().toISOString().split('T')[0];
+
+    let minTs = Number.POSITIVE_INFINITY;
+    for (const d of dates) {
+      const ts = Date.parse(d);
+      if (!Number.isNaN(ts) && ts < minTs) minTs = ts;
+    }
+    if (!Number.isFinite(minTs)) return new Date().toISOString().split('T')[0];
+    const dt = new Date(minTs);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   private mapRowToTaskFromDrizzle(row: any): Task {
     return {
       id: row.id,

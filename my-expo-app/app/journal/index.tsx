@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { SafeAreaView, View, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent, Text } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useRouter } from 'expo-router';
 import DatabaseService from '../../services/DatabaseService';
@@ -8,70 +8,94 @@ import { Journal } from '../../models/JournalModel';
 export default function JournalSummaryScreen() {
   const router = useRouter();
   const [journals, setJournals] = useState<Journal[]>([]);
-  const [stats, setStats] = useState<{ totalTasks: number; completedTasks: number }>({ totalTasks: 0, completedTasks: 0 });
   const goToDate = (d: string) => router.push({ pathname: '/journal/[date]' as any, params: { date: d } });
   // 日毎の完了タスク数
   const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
+  // 無限スクロール: 可視日数（初期60日）
+  const [visibleDays, setVisibleDays] = useState<number>(60);
+  const loadingMoreRef = useRef(false);
+  // アプリ開始日（これより前はランダム色）
+  const [appStartDate, setAppStartDate] = useState<string | null>(null);
+  // 初期表示で画面いっぱいにするためのフラグ
+  const initialSizedRef = useRef(false);
+  // グリッド列数（セルサイズが固定なので、列数から追加行の高さを推定可能）
+  const [gridCols, setGridCols] = useState<number>(1);
+  const CELL = 22;
+  const GAP = 4;
+  const PAD = 12; // contentContainer の padding と合わせる
+  const scrollRef = useRef<any>(null);
+  const lastScrollYRef = useRef(0);
+  const pendingPrependRowsRef = useRef(0);
+  const initialScrolledRef = useRef(false);
+  const lastLongPressRef = useRef(0);
+  const tooltipTimerRef = useRef<any>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  const TOOLTIP_W = 180;
+  const TOOLTIP_H = 48;
+  const [tooltip, setTooltip] = useState<{
+    visible: boolean;
+    left: number;
+    top: number;
+    date: string;
+    count: number;
+    hasJournal: boolean;
+  }>({ visible: false, left: 0, top: 0, date: '', count: 0, hasJournal: false });
 
   useEffect(() => {
     const load = async () => {
-      const [js, s] = await Promise.all([
+      const [js, start] = await Promise.all([
         DatabaseService.getJournals(),
-        DatabaseService.getTaskStats(),
+        DatabaseService.getAppStartDate(),
       ]);
       setJournals(js);
-      setStats(s);
+      setAppStartDate(start);
     };
     load();
   }, []);
 
-  const last30Days = useMemo(() => Array.from({ length: 30 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split('T')[0];
-  }), []);
+  // 今日から visibleDays-1 日前までの配列（古い→新しい順）
+  const visibleDateRange = useMemo(() => {
+    return Array.from({ length: visibleDays }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (visibleDays - 1 - i));
+      return d.toISOString().split('T')[0];
+    });
+  }, [visibleDays]);
 
-  // 直近30日の完了タスク数を取得
+  // 可視範囲の完了タスク数を増分取得
   useEffect(() => {
     let mounted = true;
-    const loadDailyCounts = async () => {
+    const loadIncrementalCounts = async () => {
+      const targets = visibleDateRange.filter(d => dailyCounts[d] === undefined);
+      if (targets.length === 0) return;
       const entries = await Promise.all(
-        last30Days.map(async (date) => {
+        targets.map(async (date) => {
           const tasks = await DatabaseService.getCompletedTasksByDate(date);
           return [date, tasks.length] as const;
         })
       );
       if (!mounted) return;
-      const map: Record<string, number> = {};
-      for (const [d, c] of entries) map[d] = c;
-      setDailyCounts(map);
+      setDailyCounts(prev => {
+        const m = { ...prev } as Record<string, number>;
+        for (const [d, c] of entries) m[d] = c;
+        return m;
+      });
     };
-    loadDailyCounts();
+    loadIncrementalCounts();
     return () => { mounted = false; };
-  }, [last30Days]);
+  }, [visibleDateRange, dailyCounts]);
 
-  const getEmotionColor = (emotion: Journal['emotion']) => {
-    switch (emotion) {
-      case 'happy': return '#4CAF50';
-      case 'excited': return '#FF9800';
-      case 'calm': return '#2196F3';
-      case 'sad': return '#9C27B0';
-      case 'angry': return '#F44336';
-      case 'peaceful': return '#66BB6A';
-      case 'thoughtful': return '#42A5F5';
-      case 'grateful': return '#FFB300';
-      case 'determined': return '#8E24AA';
-      case 'confident': return '#26A69A';
-      case 'curious': return '#29B6F6';
-      case 'content': return '#7CB342';
-      case 'hopeful': return '#AB47BC';
-      case 'neutral': return '#757575';
-      default: return '#757575';
+  // 可視日数が増えた（上に過去日を足した）直後に、追加行の高さ分だけスクロール位置を補正
+  useEffect(() => {
+    if (pendingPrependRowsRef.current > 0) {
+      const deltaY = pendingPrependRowsRef.current * (CELL + GAP);
+      const targetY = Math.max(0, lastScrollYRef.current + deltaY);
+      scrollRef.current?.scrollTo({ y: targetY, animated: false });
+      pendingPrependRowsRef.current = 0;
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleDays]);
 
-  const totalDays = journals.length;
-  const positiveDays = journals.filter(j => ['happy','excited','peaceful','grateful','confident','content','hopeful','calm','determined'].includes(j.emotion)).length;
   const journalDates = useMemo(() => new Set(journals.map(j => j.date)), [journals]);
 
   // タスク数に応じた色（0=グレー、1~薄緑、増えるほど濃く）
@@ -86,44 +110,114 @@ export default function JournalSummaryScreen() {
     return '#e6f6e6';
   };
 
+  // 安定ランダム色（開始日より前に適用）
+  const getRandomColorForDate = (date: string) => {
+    const palette = ['#e8f5e9', '#e3f2fd', '#fff3e0', '#f3e5f5', '#e0f7fa', '#fce4ec', '#ede7f6', '#f1f8e9'];
+    let hash = 0;
+    for (let i = 0; i < date.length; i++) hash = (hash * 31 + date.charCodeAt(i)) | 0;
+    const idx = Math.abs(hash) % palette.length;
+    return palette[idx];
+  };
+
+  const getCellColor = (date: string, count: number) => {
+    if (appStartDate && date < appStartDate) return getRandomColorForDate(date);
+    return getCountColor(count);
+  };
+
+  const handleCellLongPress = (date: string, count: number, hasJournal: boolean, index: number) => {
+    lastLongPressRef.current = Date.now();
+    // インデックスから座標を計算（contentContainerのpaddingを考慮）
+    const col = Math.max(0, index % Math.max(1, gridCols));
+    const row = Math.max(0, Math.floor(index / Math.max(1, gridCols)));
+  const cellLeft = PAD + col * (CELL + GAP);
+  const cellTop = PAD + row * (CELL + GAP);
+
+    // ツールチップ位置（デフォはセル上に表示、上端近い場合は下に）
+  const tipWidth = TOOLTIP_W;
+  const tipHeight = TOOLTIP_H;
+  let left = cellLeft + CELL / 2 - tipWidth / 2;
+  const minLeft = PAD;
+  const maxLeft = containerWidth > 0 ? Math.max(minLeft, containerWidth - PAD - tipWidth) : undefined;
+  if (left < minLeft) left = minLeft;
+  if (maxLeft !== undefined && left > maxLeft) left = maxLeft;
+  let top = cellTop - tipHeight - 6;
+  if (top < 8) top = cellTop + CELL + 6;
+
+    // 表示
+    setTooltip({ visible: true, left, top, date, count, hasJournal });
+    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
+    tooltipTimerRef.current = setTimeout(() => {
+      setTooltip(t => ({ ...t, visible: false }));
+    }, 1800);
+  };
+
+  const handleCellPress = (date: string) => {
+    // 長押し直後の誤タップ遷移を抑止
+    if (Date.now() - lastLongPressRef.current < 600) return;
+    goToDate(date);
+  };
+
+  const onScroll = (e: any) => {
+    const { contentOffset } = e.nativeEvent;
+    lastScrollYRef.current = contentOffset.y;
+    // スクロール中はツールチップを閉じる
+    if (tooltip.visible) setTooltip(t => ({ ...t, visible: false }));
+    const paddingToTop = 12; // 上端しきい値
+    const nearTop = contentOffset.y <= paddingToTop;
+    if (nearTop && !loadingMoreRef.current) {
+      loadingMoreRef.current = true;
+      // 追加ロード（60日ずつ、さらに過去を追加）
+      const chunk = 60;
+      const cols = Math.max(1, gridCols);
+      const rowsAdded = Math.ceil(chunk / cols);
+      pendingPrependRowsRef.current += rowsAdded;
+      setVisibleDays(prev => prev + chunk);
+      // 少し待ってからロック解除
+      setTimeout(() => { loadingMoreRef.current = false; }, 300);
+    }
+  };
+
+  // 初期表示で画面を埋めるため、レイアウトから可視日数を計算
+  const onContainerLayout = (e: LayoutChangeEvent) => {
+  const { width, height } = e.nativeEvent.layout;
+  setContainerWidth(width);
+  if (initialSizedRef.current) return;
+  const cols = Math.max(1, Math.floor((width + GAP) / (CELL + GAP)));
+  setGridCols(cols);
+    const rows = Math.max(1, Math.ceil((height + GAP) / (CELL + GAP)));
+    const needed = cols * rows + cols * 2; // 余裕を少し追加
+    setVisibleDays(prev => Math.max(prev, needed));
+    initialSizedRef.current = true;
+  };
+
+  // 初回は最下部を表示（最新日付が見えるように）
+  const onContentSizeChange = () => {
+    if (!initialScrolledRef.current && initialSizedRef.current) {
+      initialScrolledRef.current = true;
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      }, 0);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>📖 日記サマリー</Text>
-        <Text style={styles.headerSubtitle}>これまでの記録と進捗の推移</Text>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* サマリカード */}
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>累計タスク</Text>
-            <Text style={styles.summaryValue}>{stats.totalTasks}</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>完了タスク</Text>
-            <Text style={styles.summaryValue}>{stats.completedTasks}</Text>
-          </View>
-        </View>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}> 
-            <Text style={styles.summaryLabel}>日記総数</Text>
-            <Text style={styles.summaryValue}>{totalDays}</Text>
-          </View>
-          <View style={styles.summaryCard}> 
-            <Text style={styles.summaryLabel}>前向きな日</Text>
-            <Text style={styles.summaryValue}>{positiveDays}</Text>
-          </View>
-        </View>
-
-        {/* ヒートマップ（完了タスク数 × 日記有無） */}
+      <ScrollView
+        ref={scrollRef}
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+  onContentSizeChange={onContentSizeChange}
+        onLayout={onContainerLayout}
+      >
         <View style={styles.heatmapContainer}>
-          <Text style={styles.heatmapTitle}>進捗ヒートマップ（30日）</Text>
           <View style={styles.heatmapGrid}>
-            {last30Days.map(date => {
+            {visibleDateRange.map((date, index) => {
               const count = dailyCounts[date] ?? 0;
               const hasJournal = journalDates.has(date);
-              const color = getCountColor(count);
+              const color = getCellColor(date, count);
               return (
                 <TouchableOpacity
                   key={date}
@@ -132,25 +226,29 @@ export default function JournalSummaryScreen() {
                     { backgroundColor: color },
                     hasJournal ? styles.heatmapCellWithJournal : null,
                   ]}
-                  onPress={() => goToDate(date)}
+                  onPress={() => handleCellPress(date)}
+                  onLongPress={() => handleCellLongPress(date, count, hasJournal, index)}
                 />
               );
             })}
           </View>
-        </View>
-
-        {/* 最近の日記のプレビュー */}
-        <View style={styles.recentSection}>
-          <Text style={styles.sectionTitle}>最近の日記</Text>
-          {journals.slice(0, 5).map(j => (
-            <TouchableOpacity key={j.id} style={styles.pastJournalCard} onPress={() => goToDate(j.date)}>
-              <View style={styles.journalHeader}>
-                <Text style={styles.journalDate}>{j.date}</Text>
-                <View style={[styles.emotionBadge, { backgroundColor: getEmotionColor(j.emotion) }]} />
+          {tooltip.visible && (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.tooltip,
+                { left: tooltip.left, top: tooltip.top },
+              ]}
+            >
+              <View style={styles.tooltipInner}>
+                <View style={styles.tooltipDot} />
+                <View>
+                  <Text style={styles.tooltipTitle}>{tooltip.date}</Text>
+                  <Text style={styles.tooltipText}>完了タスク: {tooltip.count}／日記: {tooltip.hasJournal ? 'あり' : 'なし'}</Text>
+                </View>
               </View>
-              <Text style={styles.journalContentPreview} numberOfLines={2}>{j.content}</Text>
-            </TouchableOpacity>
-          ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -159,24 +257,32 @@ export default function JournalSummaryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { backgroundColor: theme.colors.surface, padding: 20, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, textAlign: 'center' },
-  headerSubtitle: { fontSize: 14, color: theme.colors.subtext, textAlign: 'center', marginTop: 4 },
-  content: { flex: 1, padding: 15 },
-  summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  summaryCard: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border },
-  summaryLabel: { fontSize: 12, color: theme.colors.subtext },
-  summaryValue: { fontSize: 22, fontWeight: '700', color: theme.colors.text, marginTop: 4 },
-  heatmapContainer: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border },
-  heatmapTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: theme.colors.text },
+  content: { flex: 1 },
+  contentContainer: { flexGrow: 1, padding: 12 },
+  heatmapContainer: { flex: 1 },
   heatmapGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   heatmapCell: { width: 22, height: 22, borderRadius: 4 },
   heatmapCellWithJournal: { borderWidth: 2, borderColor: theme.colors.text },
-  recentSection: { marginTop: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 8 },
-  pastJournalCard: { backgroundColor: theme.colors.surface, borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
-  journalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  journalDate: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
-  emotionBadge: { width: 20, height: 20, borderRadius: 10 },
-  journalContentPreview: { fontSize: 14, lineHeight: 20, color: theme.colors.text },
+  tooltip: { position: 'absolute', zIndex: 10, minWidth: 140, maxWidth: 220 },
+  tooltipInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    width: 180,
+  },
+  tooltipDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.text, opacity: 0.3 },
+  tooltipTitle: { fontWeight: '700', color: theme.colors.text },
+  tooltipText: { color: theme.colors.subtext, marginTop: 2 },
+  // 不要なスタイルは削除
 });
