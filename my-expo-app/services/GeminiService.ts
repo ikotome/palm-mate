@@ -134,7 +134,7 @@ class GeminiService {
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-1.5' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
       const conversationText = userConversations.length > 0 
         ? userConversations.join('\n\n') 
@@ -179,7 +179,7 @@ ${tasksText}
     }
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-flash-1.5' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       
       const prompt = `以下の日記の内容から、その日の主な感情を1つの単語で表現してください。
 

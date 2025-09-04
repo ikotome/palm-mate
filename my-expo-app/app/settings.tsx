@@ -98,9 +98,11 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // データベースを再初期化（全データ削除）
-              await DatabaseService.initializeDatabase();
+              // 全データ削除（DROP→CREATE）
+              await DatabaseService.resetDatabase();
               Alert.alert('完了', 'データが削除されました');
+              // 表示更新
+              await loadUserProfile();
             } catch (error) {
               Alert.alert('エラー', 'データの削除に失敗しました');
             }

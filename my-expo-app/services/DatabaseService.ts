@@ -1,31 +1,52 @@
-import * as SQLite from 'expo-sqlite';
 import { Task, DailyProgress } from '../models/TaskModel';
 import { Journal, EmotionData } from '../models/JournalModel';
 import { UserProfile } from '../models/UserModel';
 import { Conversation } from '../models/ConversationModel';
-import { db } from '../db/client';
+import { db, sqliteDb } from '../db/client';
 import { tasks, userProfiles, journals, conversations, getDayRangeISO } from '../db/schema';
 import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 class DatabaseService {
-  private db: SQLite.SQLiteDatabase | null = null;
-
   async initializeDatabase(): Promise<void> {
     try {
-      // 互換: 既存の async API を保持
-      this.db = await SQLite.openDatabaseAsync('palmmate.db');
-      await this.createTables();
+  await this.createTables();
     } catch (error) {
       console.error('Database initialization failed:', error);
       throw error;
     }
   }
 
+  /**
+   * 全データ削除：既存テーブルをDROPして空の状態で再作成します。
+   */
+  async resetDatabase(): Promise<void> {
+    try {
+      // 参照制約などは使っていないが、安全のためトランザクションで囲む
+      sqliteDb.execSync('BEGIN');
+      sqliteDb.execSync('DROP TABLE IF EXISTS conversations;');
+      sqliteDb.execSync('DROP TABLE IF EXISTS journals;');
+      sqliteDb.execSync('DROP TABLE IF EXISTS user_profiles;');
+      sqliteDb.execSync('DROP TABLE IF EXISTS tasks;');
+      sqliteDb.execSync('COMMIT');
+    } catch (e) {
+      try { sqliteDb.execSync('ROLLBACK'); } catch {}
+      console.error('Failed to drop tables:', e);
+      throw e;
+    }
+
+    try {
+      // ファイル縮小（任意）
+      sqliteDb.execSync('VACUUM');
+    } catch {}
+
+    // 空スキーマを再作成
+    await this.createTables();
+  }
+
   private async createTables(): Promise<void> {
     // drizzle はマイグレーション実行まで DDL を作らないため、ここで最低限のテーブルを作成
-  // expo-sqlite 同期APIでDDLを適用
-  const syncDb = (SQLite as any).openDatabaseSync('palmmate.db');
-  syncDb.execSync(`
+    // 既存の単一接続（sqliteDb）でDDLを適用
+    sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -37,7 +58,7 @@ class DatabaseService {
         priority TEXT DEFAULT 'medium'
       );
     `);
-    syncDb.execSync(`
+    sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS user_profiles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dream_self TEXT NOT NULL,
@@ -46,7 +67,7 @@ class DatabaseService {
         updated_at TEXT NOT NULL
       );
     `);
-    syncDb.execSync(`
+    sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS journals (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL UNIQUE,
@@ -58,7 +79,7 @@ class DatabaseService {
         updated_at TEXT NOT NULL
       );
     `);
-    syncDb.execSync(`
+    sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS conversations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT DEFAULT 'default',
@@ -73,7 +94,7 @@ class DatabaseService {
 
   // Task operations
   async getTasks(): Promise<Task[]> {
-    const rows = await db
+  const rows = await db
       .select()
       .from(tasks)
       .where(sql`date(${tasks.createdAt}) = date('now','localtime')`)
@@ -82,7 +103,7 @@ class DatabaseService {
   }
 
   async getTodayTasks(): Promise<Task[]> {
-    const rows = await db
+  const rows = await db
       .select()
       .from(tasks)
       .where(sql`date(${tasks.createdAt}) = date('now','localtime')`)
@@ -91,7 +112,7 @@ class DatabaseService {
   }
 
   async createTask(task: Omit<Task, 'id'>): Promise<number> {
-    const inserted = await db
+  const inserted = await db
       .insert(tasks)
       .values({
         title: task.title,
@@ -106,7 +127,7 @@ class DatabaseService {
   }
 
   async updateTask(id: number, updates: Partial<Task>): Promise<void> {
-    const set: any = {};
+  const set: any = {};
     if (updates.completed !== undefined) {
       set.completed = updates.completed ? 1 : 0;
       if (updates.completed) {
@@ -114,7 +135,7 @@ class DatabaseService {
       }
     }
     if (Object.keys(set).length === 0) return;
-    await db.update(tasks).set(set).where(eq(tasks.id, id));
+  await db.update(tasks).set(set).where(eq(tasks.id, id));
   }
 
   async addTask(task: Omit<Task, 'id'>): Promise<number> {
@@ -128,7 +149,7 @@ class DatabaseService {
   }
 
   async saveJournal(journal: Omit<Journal, 'id'>): Promise<number> {
-    const [res] = await db
+  const [res] = await db
       .insert(journals)
       .values({
         date: journal.date,
@@ -154,7 +175,7 @@ class DatabaseService {
   }
 
   async getDailyProgress(date: string): Promise<DailyProgress> {
-    const [row] = await db
+  const [row] = await db
       .select({
         totalTasks: sql<number>`COUNT(*)`,
         completedTasks: sql<number>`SUM(CASE WHEN ${tasks.completed} = 1 THEN 1 ELSE 0 END)`,
@@ -189,7 +210,7 @@ class DatabaseService {
 
   // UserProfile operations
   async getUserProfile(): Promise<UserProfile | null> {
-    const rows = await db
+  const rows = await db
       .select()
       .from(userProfiles)
       .orderBy(desc(userProfiles.updatedAt))
@@ -199,7 +220,7 @@ class DatabaseService {
 
   async createUserProfile(dreamSelf: string, dreamDescription?: string): Promise<number> {
     const now = new Date().toISOString();
-    const inserted = await db
+  const inserted = await db
       .insert(userProfiles)
       .values({
         dreamSelf,
@@ -212,7 +233,7 @@ class DatabaseService {
   }
 
   async saveUserProfile(profile: Omit<UserProfile, 'id'>): Promise<number> {
-    const inserted = await db
+  const inserted = await db
       .insert(userProfiles)
       .values({
         dreamSelf: profile.dreamSelf,
@@ -256,7 +277,7 @@ class DatabaseService {
 
   // Conversation operations
   async saveConversation(conversation: Omit<Conversation, 'id'>): Promise<Conversation> {
-    const inserted = await db
+  const inserted = await db
       .insert(conversations)
       .values({
         userId: conversation.userId,
@@ -272,9 +293,9 @@ class DatabaseService {
   }
 
   async getTodaysConversations(date?: string): Promise<Conversation[]> {
-    const targetDate = date || new Date().toISOString().split('T')[0];
-    const { start, end } = getDayRangeISO(targetDate);
-    const rows = await db
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  const { start, end } = getDayRangeISO(targetDate);
+  const rows = await db
       .select()
       .from(conversations)
       .where(and(gte(conversations.timestamp, start), lte(conversations.timestamp, end)))
@@ -283,7 +304,7 @@ class DatabaseService {
   }
 
   async getRecentConversations(limit: number = 10): Promise<Conversation[]> {
-    const rows = await db
+  const rows = await db
       .select()
       .from(conversations)
       .orderBy(desc(conversations.timestamp))
