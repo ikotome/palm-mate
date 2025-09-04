@@ -140,6 +140,9 @@ class DatabaseService {
       set.completed = updates.completed ? 1 : 0;
       if (updates.completed) {
         set.completedAt = new Date().toISOString();
+      } else {
+        // 未完了に戻した場合は完了日時をクリア
+        set.completedAt = null as any;
       }
     }
     if (updates.title !== undefined) set.title = updates.title;
@@ -219,7 +222,7 @@ class DatabaseService {
   const rows = await db
       .select()
       .from(tasks)
-  .where(sql`date(${tasks.completedAt}, 'localtime') = ${date} AND ${tasks.completed} = 1`)
+  .where(sql`date(${tasks.completedAt}) = ${date} AND ${tasks.completed} = 1`)
       .orderBy(asc(tasks.completedAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
@@ -228,7 +231,7 @@ class DatabaseService {
   const [row] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(tasks)
-  .where(sql`date(${tasks.completedAt}, 'localtime') = date('now','localtime','-1 day') AND ${tasks.completed} = 1`);
+  .where(sql`date(${tasks.completedAt}) = date('now','-1 day') AND ${tasks.completed} = 1`);
     return row?.count ?? 0;
   }
 

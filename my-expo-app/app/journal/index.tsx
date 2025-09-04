@@ -9,6 +9,8 @@ export default function JournalSummaryScreen() {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [stats, setStats] = useState<{ totalTasks: number; completedTasks: number }>({ totalTasks: 0, completedTasks: 0 });
   const goToDate = (d: string) => router.push({ pathname: '/journal/[date]' as any, params: { date: d } });
+  // 日毎の完了タスク数
+  const [dailyCounts, setDailyCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -27,6 +29,25 @@ export default function JournalSummaryScreen() {
     d.setDate(d.getDate() - (29 - i));
     return d.toISOString().split('T')[0];
   }), []);
+
+  // 直近30日の完了タスク数を取得
+  useEffect(() => {
+    let mounted = true;
+    const loadDailyCounts = async () => {
+      const entries = await Promise.all(
+        last30Days.map(async (date) => {
+          const tasks = await DatabaseService.getCompletedTasksByDate(date);
+          return [date, tasks.length] as const;
+        })
+      );
+      if (!mounted) return;
+      const map: Record<string, number> = {};
+      for (const [d, c] of entries) map[d] = c;
+      setDailyCounts(map);
+    };
+    loadDailyCounts();
+    return () => { mounted = false; };
+  }, [last30Days]);
 
   const getEmotionColor = (emotion: Journal['emotion']) => {
     switch (emotion) {
@@ -50,12 +71,25 @@ export default function JournalSummaryScreen() {
 
   const totalDays = journals.length;
   const positiveDays = journals.filter(j => ['happy','excited','peaceful','grateful','confident','content','hopeful','calm','determined'].includes(j.emotion)).length;
+  const journalDates = useMemo(() => new Set(journals.map(j => j.date)), [journals]);
+
+  // タスク数に応じた色（0=グレー、1~薄緑、増えるほど濃く）
+  const getCountColor = (count: number) => {
+    if (count >= 7) return '#04a609';
+    if (count >= 6) return '#1daf22';
+    if (count >= 5) return '#36b83a';
+    if (count >= 4) return '#4fc153';
+    if (count >= 3) return '#68ca6b';
+    if (count >= 2) return '#82d384';
+    if (count >= 1) return '#9bdb9d';
+    return '#e6f6e6';
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>📖 日記サマリー</Text>
-        <Text style={styles.headerSubtitle}>これまでの記録と感情の推移</Text>
+        <Text style={styles.headerSubtitle}>これまでの記録と進捗の推移</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -81,18 +115,23 @@ export default function JournalSummaryScreen() {
           </View>
         </View>
 
-        {/* ヒートマップ */}
+        {/* ヒートマップ（完了タスク数 × 日記有無） */}
         <View style={styles.heatmapContainer}>
-          <Text style={styles.heatmapTitle}>感情ヒートマップ（30日）</Text>
+          <Text style={styles.heatmapTitle}>進捗ヒートマップ（30日）</Text>
           <View style={styles.heatmapGrid}>
             {last30Days.map(date => {
-              const j = journals.find(x => x.date === date);
-              const color = j ? getEmotionColor(j.emotion) : '#eee';
-        return (
+              const count = dailyCounts[date] ?? 0;
+              const hasJournal = journalDates.has(date);
+              const color = getCountColor(count);
+              return (
                 <TouchableOpacity
                   key={date}
-                  style={[styles.heatmapCell, { backgroundColor: color }]}
-          onPress={() => goToDate(date)}
+                  style={[
+                    styles.heatmapCell,
+                    { backgroundColor: color },
+                    hasJournal ? styles.heatmapCellWithJournal : null,
+                  ]}
+                  onPress={() => goToDate(date)}
                 />
               );
             })}
@@ -131,6 +170,7 @@ const styles = StyleSheet.create({
   heatmapTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#333' },
   heatmapGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   heatmapCell: { width: 22, height: 22, borderRadius: 4 },
+  heatmapCellWithJournal: { borderWidth: 2, borderColor: '#455A64' },
   recentSection: { marginTop: 8 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
   pastJournalCard: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginBottom: 10 },
