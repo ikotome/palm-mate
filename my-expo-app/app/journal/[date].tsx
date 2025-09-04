@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, ScrollView } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import DatabaseService from '../../services/DatabaseService';
 import { Journal } from '../../models/JournalModel';
 import { Task } from '../../models/TaskModel';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function JournalDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
@@ -24,6 +25,25 @@ export default function JournalDetailScreen() {
     };
     load();
   }, [date]);
+
+  // フォーカス時にも再取得
+  useFocusEffect(
+    useCallback(() => {
+      if (!date) return;
+      let canceled = false;
+      (async () => {
+        const [j, t] = await Promise.all([
+          DatabaseService.getJournalByDate(String(date)),
+          DatabaseService.getCompletedTasksByDate(String(date)),
+        ]);
+        if (!canceled) {
+          setJournal(j);
+          setTasks(t);
+        }
+      })();
+      return () => { canceled = true; };
+    }, [date])
+  );
 
   const getEmotionColor = (emotion: Journal['emotion']) => {
     switch (emotion) {

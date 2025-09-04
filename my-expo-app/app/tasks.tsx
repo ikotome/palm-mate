@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { theme } from '../styles/theme';
 import DatabaseService from '../services/DatabaseService';
@@ -6,6 +6,7 @@ import GeminiService from '../services/GeminiService';
 import { Task } from '../models/TaskModel';
 import { UserProfile } from '../models/UserModel';
 import { QuestList } from '../components/QuestList';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -28,6 +29,16 @@ export default function TasksScreen() {
       } catch {}
     })();
   }, []);
+
+  // 画面フォーカス時に最新データを再取得
+  useFocusEffect(
+    useCallback(() => {
+      loadTasks();
+      loadUserProfile();
+      // フォーカスごとに自動生成は行わない（重複防止）
+      return undefined;
+    }, [])
+  );
 
   const loadTasks = async () => {
     try {

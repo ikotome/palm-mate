@@ -69,6 +69,20 @@ export default function JournalSummaryScreen() {
   // 画面フォーカス時に「今日」のカウントを再取得できるように無効化
   useFocusEffect(
     useCallback(() => {
+      // フォーカス時に journals と appStartDate を再取得
+      let canceled = false;
+      (async () => {
+        const [js, start] = await Promise.all([
+          DatabaseService.getJournals(),
+          DatabaseService.getAppStartDate(),
+        ]);
+        if (!canceled) {
+          setJournals(js);
+          setAppStartDate(start);
+        }
+      })();
+
+      // 今日のカウントを無効化して再計算を促す
       const d = new Date();
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -80,6 +94,8 @@ export default function JournalSummaryScreen() {
         delete copy[today];
         return copy;
       });
+
+      return () => { canceled = true; };
     }, [])
   );
 
