@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Platform, DevSettings } from 'react-native';
 import StackChanService from '../services/StackChanService';
 import DatabaseService from '../services/DatabaseService';
 import { UserProfile } from '../models/UserModel';
@@ -88,9 +88,25 @@ export default function SettingsScreen() {
   };
 
   const clearAllData = () => {
+    const restartApp = () => {
+      if (Platform.OS === 'web') {
+        try {
+          // @ts-ignore
+          if (typeof window !== 'undefined' && window?.location?.reload) {
+            // @ts-ignore
+            window.location.reload();
+            return;
+          }
+        } catch {}
+      }
+      try {
+        DevSettings.reload();
+      } catch {}
+    };
+
     Alert.alert(
       'データ削除確認',
-      '全てのタスクと日記データが削除されます。この操作は取り消せません。',
+      'データベースを初期化（DROP→CREATE）し、全てのタスク、日記、会話、プロフィール情報が消えます。\nこの操作は取り消せません。',
       [
         { text: 'キャンセル', style: 'cancel' },
         { 
@@ -100,9 +116,9 @@ export default function SettingsScreen() {
             try {
               // 全データ削除（DROP→CREATE）
               await DatabaseService.resetDatabase();
-              Alert.alert('完了', 'データが削除されました');
-              // 表示更新
-              await loadUserProfile();
+              Alert.alert('完了', 'データが削除されました。アプリを再起動します。', [
+                { text: 'OK', onPress: restartApp }
+              ]);
             } catch (error) {
               Alert.alert('エラー', 'データの削除に失敗しました');
             }
