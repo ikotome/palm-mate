@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView, View, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent, Text } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import DatabaseService from '../../services/DatabaseService';
 import { Journal } from '../../models/JournalModel';
 
@@ -53,14 +54,34 @@ export default function JournalSummaryScreen() {
     load();
   }, []);
 
-  // 今日から visibleDays-1 日前までの配列（古い→新しい順）
+  // 今日から visibleDays-1 日前までの配列（古い→新しい順）: ローカル日付で作成
   const visibleDateRange = useMemo(() => {
     return Array.from({ length: visibleDays }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (visibleDays - 1 - i));
-      return d.toISOString().split('T')[0];
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     });
   }, [visibleDays]);
+
+  // 画面フォーカス時に「今日」のカウントを再取得できるように無効化
+  useFocusEffect(
+    useCallback(() => {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const today = `${yyyy}-${mm}-${dd}`;
+      setDailyCounts(prev => {
+        if (prev[today] === undefined) return prev;
+        const copy = { ...prev } as Record<string, number>;
+        delete copy[today];
+        return copy;
+      });
+    }, [])
+  );
 
   // 可視範囲の完了タスク数を増分取得
   useEffect(() => {
