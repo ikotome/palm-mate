@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { theme } from '../styles/theme';
 import GeminiService from '../services/GeminiService';
@@ -11,6 +11,8 @@ interface ChatMessage {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  // 特殊レンダリング用のタイプ（draftは下書き用カードを表示）
+  type?: 'draft';
 }
 
 export default function ChatScreen() {
@@ -18,18 +20,14 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // 夜の振り返り用状態
-  const [isReflecting, setIsReflecting] = useState(false);
-  const [reflectionStep, setReflectionStep] = useState(0);
+  // 日記下書きレビュー用状態
   const [isGeneratingJournal, setIsGeneratingJournal] = useState(false);
-  const [reflectionStarted, setReflectionStarted] = useState(false);
-
-  const reflectionQuestions = [
-    { id: 'good', text: '今日は何がうまくいきましたか？1つ教えてください。' },
-    { id: 'challenge', text: '難しかったことや頑張ったことは何ですか？' },
-    { id: 'highlight', text: '今日のハイライト（嬉しかったこと）は？' },
-    { id: 'next', text: '明日の自分に一言や意識したいことは？' },
-  ] as const;
+  const [draftText, setDraftText] = useState('');
+  const [draftDate, setDraftDate] = useState<string | null>(null);
+  const [isDraftVisible, setIsDraftVisible] = useState(false);
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+  const [draftPrompted, setDraftPrompted] = useState(false); // 夜の自動提案が二重起動しないように
+  const draftMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // 初回にウェルカムメッセージを表示
@@ -41,39 +39,143 @@ export default function ChatScreen() {
         timestamp: new Date(),
       },
     ]);
-    // 夜なら日記の振り返りを提案
+    // 夜なら「質問」ではなく「自動下書き生成→レビュー」を提案
     (async () => {
-  const hour = new Date().getHours();
+      const hour = new Date().getHours();
       if (hour < 19) return; // 19時以降に提案
-  const today = jstDateString();
+      const today = jstDateString();
       try {
         const existing = await DatabaseService.getJournalByDate(today);
-        if (!existing && !reflectionStarted) {
-          setReflectionStarted(true);
+        if (!existing && !draftPrompted) {
+          setDraftPrompted(true);
           const intro: ChatMessage = {
-            id: 'reflect-intro',
-            text: 'そろそろ1日の振り返りを一緒にしませんか？短い質問に答えると、AIが“今日のあなた”をギュッとまとめた日記を書きます📝',
+            id: 'draft-intro',
+            text: 'そろそろ1日の振り返りを自動でまとめます。会話とタスクから日記の下書きを作るので、内容を確認して保存してください。',
             isUser: false,
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, intro]);
-
-          // 最初の質問を投げる
-          const q: ChatMessage = {
-            id: `reflect-q-0`,
-            text: `Q1. ${reflectionQuestions[0].text}\n（スキップする場合は「スキップ」と入力してください）`,
-            isUser: false,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, q]);
-          setIsReflecting(true);
-          setReflectionStep(0);
+          await startJournalDraftFlow('auto');
         }
       } catch (e) {
         // 失敗時は黙って通常モード
       }
     })();
   }, []);
+
+  // 下書きフロー開始（自動/手動）
+  const startJournalDraftFlow = async (trigger: 'auto' | 'manual') => {
+    try {
+      setIsGeneratingJournal(true);
+      setIsLoading(true);
+      const today = jstDateString();
+      setDraftDate(today);
+
+      // 既存日記チェック（手動でも重複保存を避ける）
+      const existing = await DatabaseService.getJournalByDate(today);
+      if (existing) {
+        const msg: ChatMessage = {
+          id: 'already-exists-' + Date.now(),
+          text: '今日はすでに日記があります。内容を見直す場合は日記ページから編集してください。',
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, msg]);
+        return;
+      }
+
+      // 文脈収集
+      const todaysConversations = await DatabaseService.getTodaysConversations(today);
+      const convTexts = todaysConversations.map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
+      const todaysTasks = await DatabaseService.getTasks();
+
+      // 生成
+      const aiText = await GeminiService.generateJournalEntry(convTexts, todaysTasks);
+      setDraftText(aiText);
+      setIsDraftVisible(true);
+      setIsEditingDraft(false);
+
+      // 表示用のドラフト・メッセージを差し込む（本文は state から描画）
+      const draftMsg: ChatMessage = {
+        id: 'draft-' + Date.now().toString(),
+        text: '',
+        isUser: false,
+        timestamp: new Date(),
+        type: 'draft',
+      };
+      draftMessageIdRef.current = draftMsg.id;
+      setMessages(prev => [...prev, draftMsg]);
+    } finally {
+      setIsGeneratingJournal(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!draftDate || !draftText.trim()) return;
+    setIsLoading(true);
+    try {
+      const emotionRaw = await GeminiService.analyzeEmotion(draftText);
+      const validEmotions = ['happy','excited','peaceful','thoughtful','grateful','determined','confident','curious','content','hopeful','sad','angry','calm','neutral'] as const;
+      const emotion = (validEmotions as readonly string[]).includes(emotionRaw as any) ? (emotionRaw as any) : 'peaceful';
+
+      await DatabaseService.saveJournal({
+        date: draftDate,
+        title: `${draftDate}の振り返り`,
+        content: draftText.trim(),
+        emotion,
+        aiGenerated: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const doneMsg: ChatMessage = {
+        id: 'draft-saved-' + Date.now(),
+        text: '📝 日記の下書きを保存しました。いつでも見返せます。',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, doneMsg]);
+      clearDraft();
+      router.push(`/journal/${draftDate}`);
+    } catch (e) {
+      const errMsg: ChatMessage = {
+        id: 'draft-save-error-' + Date.now(),
+        text: '日記の保存に失敗しました。時間をおいて再度お試しください。',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerateDraft = async () => {
+    if (!draftDate) return;
+    setIsLoading(true);
+    try {
+      const todaysConversations = await DatabaseService.getTodaysConversations(draftDate);
+      const convTexts = todaysConversations.map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
+      const todaysTasks = await DatabaseService.getTasks();
+      const aiText = await GeminiService.generateJournalEntry(convTexts, todaysTasks);
+      setDraftText(aiText);
+      setIsEditingDraft(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearDraft = () => {
+    setIsDraftVisible(false);
+    setIsEditingDraft(false);
+    setDraftText('');
+    setDraftDate(null);
+    if (draftMessageIdRef.current) {
+      setMessages(prev => prev.filter(m => m.id !== draftMessageIdRef.current));
+      draftMessageIdRef.current = null;
+    }
+  };
 
   const sendMessage = async (textOverride?: string) => {
     const payload = (textOverride ?? inputText).trim();
@@ -88,126 +190,17 @@ export default function ChatScreen() {
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
-    
-  // 振り返りモード中の処理
-    if (isReflecting) {
-      const raw = userMessage.text.trim();
-      // 日本語は lowerCase で壊れることがあるのでそのまま判定
-      if (raw.includes('スキップ') || /skip/i.test(raw) || raw.includes('後で')) {
-        setIsReflecting(false);
-        setReflectionStep(0);
-        const cancelMsg: ChatMessage = {
-          id: (Date.now() + 99).toString(),
-          text: 'また後で振り返りしましょうね。いつでも「振り返りしよう」と話しかけてください 😊',
-          isUser: false,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, cancelMsg]);
-        return;
-      }
-
-      // 次の質問 or 生成
-      const nextStep = reflectionStep + 1;
-      if (nextStep < reflectionQuestions.length) {
-        const nextQ = reflectionQuestions[nextStep];
-        // 会話ログ保存（ユーザー回答 -> 次の質問）
-        try {
-          await DatabaseService.saveConversation({
-            userId: 'default',
-            userMessage: userMessage.text,
-            aiResponse: `Q${nextStep + 1}. ${nextQ.text}`,
-            timestamp: new Date().toISOString(),
-          });
-        } catch {}
-        const bot: ChatMessage = {
-          id: (Date.now() + 2).toString(),
-          text: `Q${nextStep + 1}. ${nextQ.text}`,
-          isUser: false,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, bot]);
-        setReflectionStep(nextStep);
-      } else {
-        // 回答が揃ったのでAI日記生成
-        setIsGeneratingJournal(true);
-        try {
-          // 最後のユーザー回答も保存しておく
-          try {
-            await DatabaseService.saveConversation({
-              userId: 'default',
-              userMessage: userMessage.text,
-              aiResponse: 'ありがとう。日記を生成するね。',
-              timestamp: new Date().toISOString(),
-            });
-          } catch {}
-          // 直近のチャットからユーザー/AIの文脈を抽出
-          const todaysConversations = await DatabaseService.getTodaysConversations(jstDateString());
-          const convTexts = todaysConversations.map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
-          const todaysTasks = await DatabaseService.getTasks();
-
-          const aiText = await GeminiService.generateJournalEntry(convTexts, todaysTasks);
-          const emotionRaw = await GeminiService.analyzeEmotion(aiText);
-          const validEmotions = ['happy','excited','peaceful','thoughtful','grateful','determined','confident','curious','content','hopeful','sad','angry','calm','neutral'] as const;
-          const emotion = (validEmotions as readonly string[]).includes(emotionRaw) ? (emotionRaw as any) : 'peaceful';
-
-          const today = jstDateString();
-          await DatabaseService.saveJournal({
-            date: today,
-            title: `${today}の振り返り`,
-            content: aiText,
-            emotion,
-            aiGenerated: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-
-          const doneMsg: ChatMessage = {
-            id: (Date.now() + 3).toString(),
-            text: '📝 今日のAI日記を保存しました。ヒートマップや日記ページからいつでも見返せます！',
-            isUser: false,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, doneMsg]);
-          // 保存後に当日のジャーナル画面へ遷移
-          router.push(`/journal/${today}`);
-        } catch (e) {
-          const errMsg: ChatMessage = {
-            id: (Date.now() + 4).toString(),
-            text: '日記の生成に失敗しました。時間をおいてもう一度お試しください。',
-            isUser: false,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, errMsg]);
-        } finally {
-          setIsGeneratingJournal(false);
-          setIsReflecting(false);
-          setReflectionStep(0);
-        }
-      }
-      return;
-    }
-
-    // 手動で振り返り開始
-  const trigger = userMessage.text;
-    if (!isReflecting && (trigger.includes('振り返り') || trigger.includes('日記'))) {
-      const q0 = reflectionQuestions[0];
+    // 手動で日記の下書きを生成（キーワード: 振り返り/日記/レビュー）
+    const trigger = userMessage.text;
+    if (trigger.includes('振り返り') || trigger.includes('日記') || trigger.includes('レビュー')) {
       const bot: ChatMessage = {
         id: (Date.now() + 5).toString(),
-        text: `Q1. ${q0.text}`,
+        text: '今日の会話とタスクから日記の下書きを作ります。少しお待ちください。',
         isUser: false,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, bot]);
-      setIsReflecting(true);
-      setReflectionStep(0);
-      try {
-        await DatabaseService.saveConversation({
-          userId: 'default',
-          userMessage: userMessage.text,
-          aiResponse: `Q1. ${q0.text}`,
-          timestamp: new Date().toISOString(),
-        });
-      } catch {}
+      await startJournalDraftFlow('manual');
       return;
     }
 
@@ -363,22 +356,60 @@ export default function ChatScreen() {
   };
 
   const renderMessage = ({ item }: { item: ChatMessage }) => (
-    <View style={[
-      styles.messageContainer,
-      item.isUser ? styles.userMessage : styles.aiMessage
-    ]}>
-      <Text style={[
-        styles.messageText,
-        item.isUser ? styles.userMessageText : styles.aiMessageText
-      ]}>
-        {item.text}
-      </Text>
-      <Text style={styles.timestamp}>
-        {item.timestamp.toLocaleTimeString('ja-JP', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        })}
-      </Text>
+    <View>
+      {item.type === 'draft' && isDraftVisible ? (
+        <View style={[styles.messageContainer, styles.aiMessage]}>
+          <Text style={[styles.messageText, styles.aiMessageText, { fontWeight: '700', marginBottom: 6 }]}>AI日記の下書き</Text>
+          {isEditingDraft ? (
+            <TextInput
+              style={[styles.draftInput]}
+              value={draftText}
+              onChangeText={setDraftText}
+              multiline
+              maxLength={1200}
+              placeholder="日記の内容を編集..."
+              editable={!isLoading}
+            />
+          ) : (
+            <Text style={[styles.messageText, styles.aiMessageText]}>{draftText}</Text>
+          )}
+          <View style={styles.draftButtonsRow}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setIsEditingDraft(e => !e)}>
+              <Text style={styles.secondaryBtnText}>{isEditingDraft ? '編集をやめる' : '編集する'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={handleRegenerateDraft}>
+              <Text style={styles.secondaryBtnText}>再生成</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveDraft}>
+              <Text style={styles.primaryBtnText}>保存する</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dangerBtn} onPress={clearDraft}>
+              <Text style={styles.dangerBtnText}>破棄</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.timestamp}>
+            {item.timestamp.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      ) : (
+        <View style={[
+          styles.messageContainer,
+          item.isUser ? styles.userMessage : styles.aiMessage
+        ]}>
+          <Text style={[
+            styles.messageText,
+            item.isUser ? styles.userMessageText : styles.aiMessageText
+          ]}>
+            {item.text}
+          </Text>
+          <Text style={styles.timestamp}>
+            {item.timestamp.toLocaleTimeString('ja-JP', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -488,6 +519,16 @@ const styles = StyleSheet.create({
   borderWidth: 1,
   borderColor: theme.colors.border,
   },
+  draftInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 10,
+    padding: 10,
+    minHeight: 120,
+    maxHeight: 300,
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
@@ -497,6 +538,47 @@ const styles = StyleSheet.create({
   },
   aiMessageText: {
   color: theme.colors.text,
+  },
+  draftButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  primaryBtn: {
+    backgroundColor: theme.colors.text,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  primaryBtnText: {
+    color: theme.colors.surface,
+    fontWeight: '600',
+  },
+  secondaryBtn: {
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  secondaryBtnText: {
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
+  dangerBtn: {
+    backgroundColor: '#fff1f0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffccc7',
+  },
+  dangerBtnText: {
+    color: '#d4380d',
+    fontWeight: '600',
   },
   timestamp: {
     fontSize: 12,
