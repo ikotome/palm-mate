@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import GeminiService from '../services/GeminiService';
+import DatabaseService from '../services/DatabaseService';
 
 interface ChatMessage {
   id: string;
@@ -10,16 +11,21 @@ interface ChatMessage {
 }
 
 export default function ChatScreen() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      text: 'こんにちは！今日はどんなことを話しましょうか？😊',
-      isUser: false,
-      timestamp: new Date(),
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // 初回にウェルカムメッセージを表示
+    setMessages([
+      {
+        id: 'welcome',
+        text: 'こんにちは！今日はどんなことを話しましょうか？😊',
+        isUser: false,
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -36,9 +42,14 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
+      const context = messages
+        .slice(-3)
+        .map(m => `${m.isUser ? 'ユーザー' : 'AI'}: ${m.text}`)
+        .join('\n');
+
       const aiResponse = await GeminiService.generateChatResponse(
         userMessage.text,
-        `過去のメッセージ: ${messages.slice(-3).map(m => `${m.isUser ? 'ユーザー' : 'AI'}: ${m.text}`).join('\n')}`
+        context ? `過去のメッセージ:\n${context}` : undefined
       );
 
       const aiMessage: ChatMessage = {
@@ -49,8 +60,16 @@ export default function ChatScreen() {
       };
 
       setMessages(prev => [...prev, aiMessage]);
+
+      // DB保存
+      await DatabaseService.saveConversation({
+        userId: 'default',
+        userMessage: userMessage.text,
+        aiResponse: aiResponse,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
-      const errorMessage: ChatMessage = {
+  const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: 'すみません、今はお返事できません。少し時間をおいてもう一度試してください。',
         isUser: false,

@@ -61,6 +61,13 @@ export default function RootLayout() {
           ),
         }}
       />
+      {/* タブには出さないチャット画面（プッシュ遷移のみ） */}
+      <Tabs.Screen
+        name="chat"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
