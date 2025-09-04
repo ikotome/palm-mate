@@ -1,28 +1,29 @@
 import { Tabs } from "expo-router";
 import { Text } from "react-native";
+import { theme } from "../styles/theme";
 
 export default function RootLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: theme.colors.accent,
+        tabBarInactiveTintColor: theme.colors.subtext,
         headerShown: false,
         tabBarStyle: {
-          height: 80,
-          paddingBottom: 10,
-          paddingTop: 10,
-          backgroundColor: 'white',
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+          backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
+          borderTopColor: theme.colors.border,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: 2,
         },
         tabBarIconStyle: {
-          marginBottom: -4,
+          marginBottom: -2,
         },
       }}>
       <Tabs.Screen
@@ -30,7 +31,7 @@ export default function RootLayout() {
         options={{
           title: 'ホーム',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>🏠</Text>
+            <Text style={{ fontSize: focused ? 24 : 20 }}>🏠</Text>
           ),
         }}
       />
@@ -39,7 +40,7 @@ export default function RootLayout() {
         options={{
           title: '日記',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>📖</Text>
+            <Text style={{ fontSize: focused ? 24 : 20 }}>📖</Text>
           ),
         }}
       />
@@ -55,7 +56,7 @@ export default function RootLayout() {
         options={{
           title: 'タスク',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>✅</Text>
+            <Text style={{ fontSize: focused ? 24 : 20 }}>✅</Text>
           ),
         }}
       />
@@ -64,7 +65,7 @@ export default function RootLayout() {
         options={{
           title: '設定',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>⚙️</Text>
+            <Text style={{ fontSize: focused ? 24 : 20 }}>⚙️</Text>
           ),
         }}
       />

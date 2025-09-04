@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { theme } from '../../styles/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import DatabaseService from '../../services/DatabaseService';
 import { Journal } from '../../models/JournalModel';
@@ -90,23 +91,23 @@ export default function JournalDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { backgroundColor: '#8BC34A', padding: 20, paddingTop: 10 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center' },
-  headerSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: 4 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: { backgroundColor: theme.colors.surface, padding: 20, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, textAlign: 'center' },
+  headerSubtitle: { fontSize: 14, color: theme.colors.subtext, textAlign: 'center', marginTop: 4 },
   content: { padding: 15, paddingBottom: 24 },
   section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-  journalCard: { backgroundColor: 'white', borderRadius: 12, padding: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 10 },
+  journalCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: theme.colors.border },
   journalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  journalDate: { fontSize: 14, fontWeight: '600', color: '#333' },
+  journalDate: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
   emotionBadge: { width: 20, height: 20, borderRadius: 10 },
-  journalContent: { fontSize: 16, lineHeight: 24, color: '#444' },
-  aiLabel: { fontSize: 12, color: '#666', marginTop: 8, textAlign: 'right' },
-  noJournalCard: { backgroundColor: 'white', borderRadius: 12, padding: 24, alignItems: 'center' },
-  noJournalText: { color: '#666' },
-  taskCard: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginBottom: 8 },
-  taskTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-  taskDesc: { fontSize: 14, color: '#666', marginTop: 4 },
-  noTasksText: { color: '#666' },
+  journalContent: { fontSize: 16, lineHeight: 24, color: theme.colors.text },
+  aiLabel: { fontSize: 12, color: theme.colors.subtext, marginTop: 8, textAlign: 'right' },
+  noJournalCard: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border },
+  noJournalText: { color: theme.colors.subtext },
+  taskCard: { backgroundColor: theme.colors.surface, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: theme.colors.border },
+  taskTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+  taskDesc: { fontSize: 14, color: theme.colors.subtext, marginTop: 4 },
+  noTasksText: { color: theme.colors.subtext },
 });

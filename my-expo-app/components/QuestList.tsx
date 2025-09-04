@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FlatList, View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { theme } from '../styles/theme';
 import { Task } from '../models/TaskModel';
 import { QuestItem } from './QuestItem';
 
@@ -235,25 +236,21 @@ const styles = StyleSheet.create({
   pageEmptyContainer: {
     alignItems: 'center',
     padding: 30,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   summaryContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderTopWidth: 1,
+    borderColor: theme.colors.border,
   },
   summaryTouchable: {
     padding: 15,
@@ -261,7 +258,7 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#ddd',
+    backgroundColor: theme.colors.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 10,
@@ -277,11 +274,11 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
   },
   dreamText: {
     fontSize: 12,
-    color: '#4CAF50',
+    color: theme.colors.subtext,
     marginTop: 2,
   },
   summaryRight: {
@@ -291,18 +288,18 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.surface,
   },
   expandText: {
     fontSize: 10,
-    color: '#666',
+    color: theme.colors.subtext,
     marginTop: 4,
   },
   previewContainer: {
@@ -311,7 +308,7 @@ const styles = StyleSheet.create({
   },
   previewText: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
   },
   drawerContainer: {
     position: 'absolute',
@@ -319,9 +316,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: height * 0.8,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   drawerContent: {
     flex: 1,
@@ -334,24 +333,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: theme.colors.border,
   },
   drawerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
   },
   closeButton: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.muted,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   closeButtonText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text,
   },
   taskSection: {
     marginBottom: 20,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 10,
   },
   overlay: {
@@ -373,13 +374,15 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     padding: 40,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   emptyEmoji: {
     fontSize: 50,
@@ -387,13 +390,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.subtext,
     textAlign: 'center',
   },
 });

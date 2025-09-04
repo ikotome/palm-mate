@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Platform, DevSettings } from 'react-native';
+import { theme } from '../styles/theme';
 import StackChanService from '../services/StackChanService';
 import DatabaseService from '../services/DatabaseService';
 import { UserProfile } from '../models/UserModel';
@@ -329,22 +330,24 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#FF9800',
+    backgroundColor: theme.colors.surface,
     padding: 20,
     paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.subtext,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -358,13 +361,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 10,
   },
   profileCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   profileInfo: {
     marginBottom: 15,
@@ -372,34 +377,36 @@ const styles = StyleSheet.create({
   profileLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.subtext,
     marginBottom: 5,
   },
   profileValue: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 10,
   },
   profileDescription: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
     lineHeight: 20,
   },
   editButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.text,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
   editButtonText: {
-    color: 'white',
+    color: theme.colors.surface,
     fontWeight: '600',
     fontSize: 14,
   },
   infoCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   infoRow: {
     flexDirection: 'row',
@@ -409,17 +416,19 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text,
   },
   infoValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.subtext,
   },
   settingCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   settingRow: {
     flexDirection: 'row',
@@ -432,11 +441,11 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
   },
   settingDescription: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
     marginTop: 2,
   },
   buttonGroup: {
@@ -446,33 +455,37 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.muted,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   actionButtonText: {
-    color: 'white',
+    color: theme.colors.text,
     fontWeight: '600',
     fontSize: 14,
   },
   debugCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   debugButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: theme.colors.muted,
     borderRadius: 10,
     paddingVertical: 15,
     paddingHorizontal: 20,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: theme.colors.border,
   },
   debugButtonText: {
     fontSize: 16,
-    color: '#495057',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   footer: {
@@ -481,39 +494,39 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.text,
     marginBottom: 5,
   },
   footerSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: theme.colors.subtext,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: theme.colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
   },
   modalCancelText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
   },
   modalSaveText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4CAF50',
+    color: theme.colors.accent,
   },
   modalContent: {
     flex: 1,
@@ -522,16 +535,16 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
     padding: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
     marginBottom: 20,
   },
   multilineInput: {

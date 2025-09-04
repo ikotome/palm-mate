@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { theme } from '../styles/theme';
 import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
 import { useRouter } from 'expo-router';
@@ -405,22 +406,24 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.surface,
     padding: 20,
     paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.subtext,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -438,14 +441,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   userMessage: {
-    backgroundColor: '#4CAF50',
+  backgroundColor: theme.colors.accent,
     alignSelf: 'flex-end',
   },
   aiMessage: {
-    backgroundColor: 'white',
+  backgroundColor: theme.colors.surface,
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  borderWidth: 1,
+  borderColor: theme.colors.border,
   },
   messageText: {
     fontSize: 16,
@@ -455,11 +458,11 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   aiMessageText: {
-    color: '#333',
+  color: theme.colors.text,
   },
   timestamp: {
     fontSize: 12,
-    color: 'rgba(0,0,0,0.5)',
+  color: theme.colors.subtext,
     marginTop: 4,
     textAlign: 'right',
   },
@@ -469,21 +472,21 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#666',
+  color: theme.colors.subtext,
     fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
     padding: 15,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+  backgroundColor: theme.colors.surface,
+  borderTopWidth: 1,
+  borderTopColor: theme.colors.border,
     alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  borderWidth: 1,
+  borderColor: theme.colors.border,
     borderRadius: 20,
     paddingHorizontal: 15,
     paddingVertical: 10,
@@ -492,7 +495,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   sendButton: {
-    backgroundColor: '#4CAF50',
+  backgroundColor: theme.colors.text,
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -502,20 +505,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
   },
   sendButtonText: {
-    color: 'white',
+  color: theme.colors.surface,
     fontWeight: '600',
     fontSize: 16,
   },
   debugButton: {
     alignSelf: 'center',
     marginTop: 8,
-    backgroundColor: 'white',
+  backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
   },
   debugButtonText: {
-    color: '#4CAF50',
+  color: theme.colors.accent,
     fontWeight: '600',
   },
 });

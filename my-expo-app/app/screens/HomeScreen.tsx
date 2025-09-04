@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Alert } from 'react-native';
+import { theme } from '../../styles/theme';
 import DatabaseService from '../../services/DatabaseService';
 import { UserProfile } from '../../models/UserModel';
 import { OnboardingScreen } from '../../components/OnboardingScreen';
@@ -47,9 +48,9 @@ export const HomeScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>🌟 PalmMate</Text>
+      <Text style={styles.loadingText}>🌟 PalmMate</Text>
           <Text style={styles.loadingSubtext}>読み込み中...</Text>
         </View>
       </SafeAreaView>
@@ -61,7 +62,7 @@ export const HomeScreen: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+  <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* アバター表示エリア */}
         <View style={styles.avatarContainer}>
@@ -94,10 +95,12 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
+export default HomeScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -107,12 +110,12 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4CAF50',
+    color: theme.colors.accent,
     marginBottom: 10,
   },
   loadingSubtext: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
   },
   content: {
     flex: 1,
@@ -138,12 +141,12 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 10,
   },
   dreamText: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
     textAlign: 'center',
   },
   actionContainer: {
@@ -151,18 +154,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
+    backgroundColor: theme.colors.text,
+    borderRadius: 24,
     paddingVertical: 15,
     paddingHorizontal: 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowColor: 'transparent',
   },
   actionButtonText: {
-    color: 'white',
+    color: theme.colors.surface,
     fontSize: 18,
     fontWeight: 'bold',
   },

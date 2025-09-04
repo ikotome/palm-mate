@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { theme } from '../../styles/theme';
 import { useRouter } from 'expo-router';
 import DatabaseService from '../../services/DatabaseService';
 import { Journal } from '../../models/JournalModel';
@@ -157,25 +158,25 @@ export default function JournalSummaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { backgroundColor: '#8BC34A', padding: 20, paddingTop: 10 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: 'white', textAlign: 'center' },
-  headerSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginTop: 4 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: { backgroundColor: theme.colors.surface, padding: 20, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, textAlign: 'center' },
+  headerSubtitle: { fontSize: 14, color: theme.colors.subtext, textAlign: 'center', marginTop: 4 },
   content: { flex: 1, padding: 15 },
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  summaryCard: { flex: 1, backgroundColor: 'white', borderRadius: 12, padding: 16, alignItems: 'center' },
-  summaryLabel: { fontSize: 12, color: '#666' },
-  summaryValue: { fontSize: 22, fontWeight: '700', color: '#333', marginTop: 4 },
-  heatmapContainer: { backgroundColor: 'white', borderRadius: 12, padding: 16, marginBottom: 16 },
-  heatmapTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#333' },
+  summaryCard: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border },
+  summaryLabel: { fontSize: 12, color: theme.colors.subtext },
+  summaryValue: { fontSize: 22, fontWeight: '700', color: theme.colors.text, marginTop: 4 },
+  heatmapContainer: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border },
+  heatmapTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: theme.colors.text },
   heatmapGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   heatmapCell: { width: 22, height: 22, borderRadius: 4 },
-  heatmapCellWithJournal: { borderWidth: 2, borderColor: '#455A64' },
+  heatmapCellWithJournal: { borderWidth: 2, borderColor: theme.colors.text },
   recentSection: { marginTop: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
-  pastJournalCard: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 8 },
+  pastJournalCard: { backgroundColor: theme.colors.surface, borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
   journalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  journalDate: { fontSize: 14, fontWeight: '600', color: '#333' },
+  journalDate: { fontSize: 14, fontWeight: '600', color: theme.colors.text },
   emotionBadge: { width: 20, height: 20, borderRadius: 10 },
-  journalContentPreview: { fontSize: 14, lineHeight: 20, color: '#444' },
+  journalContentPreview: { fontSize: 14, lineHeight: 20, color: theme.colors.text },
 });

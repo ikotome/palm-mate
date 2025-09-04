@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { theme } from '../styles/theme';
 import { Task } from '../models/TaskModel';
 
 interface QuestItemProps {
@@ -37,23 +38,17 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     padding: 15,
     marginVertical: 5,
     marginHorizontal: 10,
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   completedContainer: {
-    backgroundColor: '#f0f8f0',
-    opacity: 0.8,
+    backgroundColor: theme.colors.accentSoft,
+    opacity: 0.9,
   },
   taskInfo: {
     flex: 1,
@@ -62,20 +57,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   completedTitle: {
     textDecorationLine: 'line-through',
-    color: '#666',
+    color: theme.colors.subtext,
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
   },
   completedDescription: {
     textDecorationLine: 'line-through',
-    color: '#999',
+    color: theme.colors.subtext,
   },
   buttonContainer: {
     justifyContent: 'center',
@@ -86,15 +81,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     minWidth: 80,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   completeButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.text,
   },
   undoButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: theme.colors.muted,
   },
   buttonText: {
-    color: 'white',
+    color: theme.colors.surface,
     fontSize: 14,
     fontWeight: '600',
   },

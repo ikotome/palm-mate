@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
+import { theme } from '../styles/theme';
 
 interface OnboardingScreenProps {
   onComplete: (data: { dreamSelf: string; dreamDescription?: string }) => void;
@@ -190,7 +191,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fffe',
+    backgroundColor: theme.colors.background,
   },
   keyboardAvoid: {
     flex: 1,
@@ -202,13 +203,13 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 6,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: theme.colors.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.accent,
     borderRadius: 3,
   },
   progressText: {
@@ -235,13 +236,13 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 10,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -251,31 +252,31 @@ const styles = StyleSheet.create({
   questionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 10,
   },
   questionSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: theme.colors.subtext,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 30,
   },
   dreamInput: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
     fontSize: 16,
     minHeight: 80,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     marginBottom: 30,
   },
   examplesTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 15,
   },
   examplesContainer: {
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exampleChip: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: theme.colors.accentSoft,
     borderRadius: 20,
     paddingHorizontal: 15,
     paddingVertical: 8,
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
   },
   exampleText: {
     fontSize: 14,
-    color: '#2E7D32',
+    color: theme.colors.accent,
   },
   confirmContainer: {
     alignItems: 'center',
@@ -305,12 +306,12 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 30,
   },
   dreamDisplay: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: theme.colors.accentSoft,
     borderRadius: 15,
     padding: 20,
     marginBottom: 30,
@@ -318,53 +319,55 @@ const styles = StyleSheet.create({
   },
   dreamLabel: {
     fontSize: 14,
-    color: '#2E7D32',
+    color: theme.colors.accent,
     marginBottom: 8,
   },
   dreamText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1B5E20',
+    color: theme.colors.text,
   },
   descriptionLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   descriptionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
     textAlign: 'center',
     marginBottom: 20,
   },
   descriptionInput: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
     fontSize: 16,
     minHeight: 120,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     marginBottom: 30,
     width: '100%',
   },
   benefitsContainer: {
-    backgroundColor: '#fff3e0',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
     width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   benefitsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#E65100',
+    color: theme.colors.text,
     marginBottom: 10,
   },
   benefitItem: {
     fontSize: 14,
-    color: '#BF360C',
+    color: theme.colors.subtext,
     marginBottom: 5,
     lineHeight: 20,
   },
@@ -376,19 +379,21 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.muted,
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: theme.colors.text,
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.text,
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
@@ -399,6 +404,6 @@ const styles = StyleSheet.create({
   nextButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: theme.colors.surface,
   },
 });

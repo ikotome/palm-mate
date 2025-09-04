@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { theme } from '../styles/theme';
 import DatabaseService from '../services/DatabaseService';
 import GeminiService from '../services/GeminiService';
 import { Task } from '../models/TaskModel';
@@ -220,22 +221,24 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.surface,
     padding: 20,
     paddingTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
+    color: theme.colors.subtext,
     textAlign: 'center',
     marginTop: 4,
   },
@@ -247,35 +250,33 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   generateButton: {
-    backgroundColor: '#FF9800',
-    borderRadius: 15,
+    backgroundColor: theme.colors.text,
+    borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowColor: 'transparent',
   },
   generateButtonDisabled: {
     backgroundColor: '#ccc',
   },
   generateButtonText: {
-    color: 'white',
+    color: theme.colors.surface,
     fontSize: 16,
     fontWeight: 'bold',
   },
   pruneButton: {
-    backgroundColor: '#607D8B',
+    backgroundColor: theme.colors.muted,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   pruneButtonText: {
-    color: 'white',
+    color: theme.colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   goalSection: {
@@ -295,25 +296,25 @@ const styles = StyleSheet.create({
   goalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   goalCard: {
-    backgroundColor: 'white',
+    backgroundColor: theme.colors.surface,
     borderRadius: 15,
     padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   goalText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   goalDescription: {
     fontSize: 14,
-    color: '#666',
+    color: theme.colors.subtext,
     lineHeight: 20,
   },
 });
