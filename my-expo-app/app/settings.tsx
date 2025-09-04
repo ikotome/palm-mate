@@ -276,7 +276,7 @@ export default function SettingsScreen() {
             Made with ❤️ for your growth
           </Text>
           <Text style={styles.footerSubtext}>
-            たまごっち風の成長アプリ
+            あなたの成長に寄り添うパートナーとして
           </Text>
         </View>
       </ScrollView>

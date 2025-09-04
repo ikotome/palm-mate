@@ -39,7 +39,23 @@ export default function RootLayout() {
         options={{
           title: '日記',
           tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>�</Text>
+            <Text style={{ fontSize: focused ? 28 : 24 }}>📖</Text>
+          ),
+        }}
+      />
+      {/* タブには出さないジャーナルの詳細画面（プッシュ遷移のみ） */}
+      <Tabs.Screen
+        name="journal/[date]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: 'タスク',
+          tabBarIcon: ({ focused }) => (
+            <Text style={{ fontSize: focused ? 28 : 24 }}>✅</Text>
           ),
         }}
       />
@@ -49,15 +65,6 @@ export default function RootLayout() {
           title: '設定',
           tabBarIcon: ({ focused }) => (
             <Text style={{ fontSize: focused ? 28 : 24 }}>⚙️</Text>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="tasks"
-        options={{
-          title: 'タスク',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 28 : 24 }}>✅</Text>
           ),
         }}
       />

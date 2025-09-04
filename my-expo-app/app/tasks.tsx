@@ -13,8 +13,19 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadTasks();
-    loadUserProfile();
+  loadTasks();
+  loadUserProfile();
+  ensureDailyTasks();
+    // 初回ロード時に多すぎる場合は5件に整理
+    (async () => {
+      try {
+        const count = await DatabaseService.getTodaysTasksCount();
+        if (count > 5) {
+          await DatabaseService.pruneTodayTasks(5);
+          await loadTasks();
+        }
+      } catch {}
+    })();
   }, []);
 
   const loadTasks = async () => {
@@ -36,23 +47,37 @@ export default function TasksScreen() {
   };
 
   const generateNewTasks = async () => {
-    if (!userProfile || loading) return;
+    if (loading) return;
     
     setLoading(true);
     try {
-      const newTasks = await GeminiService.generatePersonalizedTasks(
-        userProfile.dreamSelf,
-        userProfile.dreamDescription || userProfile.dreamSelf
-      );
+      const goal = userProfile?.dreamSelf || '今の自分を少し良くする';
+      const desc = userProfile?.dreamDescription || goal;
+      // 文脈収集
+      const recentConvs = (await DatabaseService.getRecentConversations(10)).map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
+      const todayExisting = (await DatabaseService.getTodayTasks()).map(t => t.title);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yyyymmdd = yesterday.toISOString().split('T')[0];
+      const yCompleted = (await DatabaseService.getCompletedTasksByDate(yyyymmdd)).map(t => t.title);
+
+      const concrete = await GeminiService.generateConcretePersonalizedTasks({
+        userGoal: goal,
+        dreamDescription: desc,
+        recentConversations: recentConvs,
+        existingTodayTitles: todayExisting,
+        recentCompletedTitles: yCompleted,
+        targetCount: 5,
+      });
       
-      for (const task of newTasks) {
+      for (const task of concrete) {
         // PersonalizedTaskをTaskに変換
         const taskData = {
           title: task.title,
           description: task.description,
-          completed: task.isCompleted,
-          createdAt: task.createdAt.toISOString(),
-          priority: task.priority <= 2 ? 'high' : task.priority <= 4 ? 'medium' : 'low' as 'high' | 'medium' | 'low'
+          completed: false,
+          createdAt: new Date().toISOString(),
+          priority: (task.priority || 'medium') as 'high' | 'medium' | 'low'
         };
         await DatabaseService.createTask(taskData);
       }
@@ -62,6 +87,48 @@ export default function TasksScreen() {
       console.error('Failed to generate tasks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 1日1回の自動生成: 目安5個。既に今日のタスクがあれば不足分のみ補充。
+  const ensureDailyTasks = async () => {
+    try {
+  const profile = await DatabaseService.getUserProfile();
+      const todayCount = await DatabaseService.getTodaysTasksCount();
+      const target = 5; // 目安個数
+      let toCreate = 0;
+      if (todayCount >= target) return; // 既に十分
+      if (todayCount === 0) {
+        // 初回は必ず5件用意（前日達成があれば今後の難易度調整に活用予定）
+        toCreate = target;
+      } else {
+        toCreate = target - todayCount;
+      }
+      if (toCreate <= 0) return;
+
+      // Geminiから候補を取得し、必要数のみ追加
+  const goal = profile?.dreamSelf || '今の自分を少し良くする';
+  const desc = profile?.dreamDescription || goal;
+  const candidates = await GeminiService.generatePersonalizedTasks(goal, desc);
+      let selected = candidates.slice(0, Math.max(0, toCreate));
+      // 候補が少ない場合はサンプルを繰り返し補充
+      while (selected.length < toCreate) {
+        const more = await GeminiService.generatePersonalizedTasks(goal, desc);
+        selected = selected.concat(more).slice(0, toCreate);
+        if (more.length === 0) break; // 念のため無限ループ防止
+      }
+      for (const t of selected) {
+        await DatabaseService.createTask({
+          title: t.title,
+          description: t.description,
+          completed: false,
+          createdAt: new Date().toISOString(),
+          priority: t.priority <= 2 ? 'high' : t.priority <= 4 ? 'medium' : 'low',
+        });
+      }
+      await loadTasks();
+    } catch (e) {
+      console.warn('ensureDailyTasks failed:', e);
     }
   };
 
@@ -107,12 +174,19 @@ export default function TasksScreen() {
         <View style={styles.actionSection}>
           <TouchableOpacity 
             style={[styles.generateButton, loading && styles.generateButtonDisabled]}
-            onPress={generateNewTasks}
-            disabled={loading || !userProfile}
+            onPress={async () => { await ensureDailyTasks(); await generateNewTasks(); }}
+            disabled={loading}
           >
             <Text style={styles.generateButtonText}>
               {loading ? '⏳ 生成中...' : '✨ 新しいタスクを生成'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.pruneButton]}
+            onPress={async () => { await DatabaseService.pruneTodayTasks(5); await loadTasks(); }}
+          >
+            <Text style={styles.pruneButtonText}>🧹 今日のタスクを5件に整理</Text>
           </TouchableOpacity>
         </View>
 
@@ -191,6 +265,19 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pruneButton: {
+    backgroundColor: '#607D8B',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  pruneButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 25,

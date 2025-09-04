@@ -4,7 +4,7 @@ import { UserProfile } from '../models/UserModel';
 import { Conversation } from '../models/ConversationModel';
 import { db, sqliteDb } from '../db/client';
 import { tasks, userProfiles, journals, conversations, getDayRangeISO } from '../db/schema';
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql, inArray } from 'drizzle-orm';
 
 class DatabaseService {
   async initializeDatabase(): Promise<void> {
@@ -95,20 +95,28 @@ class DatabaseService {
   // Task operations
   async getTasks(): Promise<Task[]> {
   const rows = await db
-      .select()
-      .from(tasks)
-      .where(sql`date(${tasks.createdAt}) = date('now','localtime')`)
-      .orderBy(desc(tasks.createdAt));
+    .select()
+    .from(tasks)
+    .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`)
+    .orderBy(desc(tasks.createdAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
   async getTodayTasks(): Promise<Task[]> {
   const rows = await db
-      .select()
-      .from(tasks)
-      .where(sql`date(${tasks.createdAt}) = date('now','localtime')`)
-      .orderBy(asc(tasks.completed), desc(tasks.createdAt));
+    .select()
+    .from(tasks)
+    .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`)
+    .orderBy(asc(tasks.completed), desc(tasks.createdAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
+  }
+
+  async getTodaysTasksCount(): Promise<number> {
+  const [row] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(tasks)
+      .where(sql`date(${tasks.createdAt}, 'localtime') = date('now','localtime')`);
+    return row?.count ?? 0;
   }
 
   async createTask(task: Omit<Task, 'id'>): Promise<number> {
@@ -134,6 +142,9 @@ class DatabaseService {
         set.completedAt = new Date().toISOString();
       }
     }
+    if (updates.title !== undefined) set.title = updates.title;
+    if (updates.description !== undefined) set.description = updates.description ?? '';
+    if (updates.priority !== undefined) set.priority = updates.priority;
     if (Object.keys(set).length === 0) return;
   await db.update(tasks).set(set).where(eq(tasks.id, id));
   }
@@ -149,7 +160,7 @@ class DatabaseService {
   }
 
   async getJournalByDate(date: string): Promise<Journal | null> {
-    const rows = await db
+  const rows = await db
       .select()
       .from(journals)
       .where(eq(journals.date, date))
@@ -204,42 +215,44 @@ class DatabaseService {
     };
   }
 
-  async getTasksForDate(date: string): Promise<Task[]> {
-    // createdAt が指定日のもの
-    const rows = await db
+  async getCompletedTasksByDate(date: string): Promise<Task[]> {
+  const rows = await db
       .select()
       .from(tasks)
-      .where(sql`date(${tasks.createdAt}) = ${date}`)
-      .orderBy(desc(tasks.createdAt));
+  .where(sql`date(${tasks.completedAt}, 'localtime') = ${date} AND ${tasks.completed} = 1`)
+      .orderBy(asc(tasks.completedAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
-  async getCompletedTasksForDate(date: string): Promise<Task[]> {
-    // completedAt が指定日のもの（completed=1）
-    const { start, end } = getDayRangeISO(date);
-    const rows = await db
-      .select()
+  async getYesterdayCompletedCount(): Promise<number> {
+  const [row] = await db
+      .select({ count: sql<number>`COUNT(*)` })
       .from(tasks)
-      .where(and(eq(tasks.completed, 1 as any), gte(tasks.completedAt as any, start), lte(tasks.completedAt as any, end)))
-      .orderBy(asc(tasks.completedAt as any));
-    return rows.map(this.mapRowToTaskFromDrizzle);
+  .where(sql`date(${tasks.completedAt}, 'localtime') = date('now','localtime','-1 day') AND ${tasks.completed} = 1`);
+    return row?.count ?? 0;
   }
 
-  async getTotals(): Promise<{ totalTasks: number; totalCompletedTasks: number; totalJournals: number; }>{
-    const [{ cnt: totalTasks }] = await db
-      .select({ cnt: sql<number>`COUNT(*)` })
+  // 今日のタスクを keep 件だけ残して他は削除
+  async pruneTodayTasks(keep: number = 5): Promise<number> {
+    const list = await this.getTodayTasks(); // 未完了優先・新しい順
+    if (list.length <= keep) return 0;
+    const toDelete = list.slice(keep).map(t => t.id);
+    if (toDelete.length === 0) return 0;
+    await db.delete(tasks).where(inArray(tasks.id, toDelete));
+    return toDelete.length;
+  }
+
+  async getTaskStats(): Promise<{ totalTasks: number; completedTasks: number }> {
+  const [row] = await db
+      .select({
+        totalTasks: sql<number>`COUNT(*)`,
+        completedTasks: sql<number>`SUM(CASE WHEN ${tasks.completed} = 1 THEN 1 ELSE 0 END)`,
+      })
       .from(tasks);
-
-    const [{ cnt: totalCompletedTasks }] = await db
-      .select({ cnt: sql<number>`COUNT(*)` })
-      .from(tasks)
-      .where(eq(tasks.completed, 1 as any));
-
-    const [{ cnt: totalJournals }] = await db
-      .select({ cnt: sql<number>`COUNT(*)` })
-      .from(journals);
-
-    return { totalTasks, totalCompletedTasks, totalJournals };
+    return {
+      totalTasks: row?.totalTasks ?? 0,
+      completedTasks: row?.completedTasks ?? 0,
+    };
   }
 
   private mapRowToTaskFromDrizzle(row: any): Task {
