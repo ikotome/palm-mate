@@ -9,6 +9,7 @@ export const theme = {
     muted: '#F3F4F6', // うすい塗り
     accent: '#10B981', // アクセント（エメラルド）
     accentSoft: '#ECFDF5', // アクセントの淡色背景
+  purple: '#8B5CF6', // 完了時のチェックボックス用（バイオレット）
   },
   radius: {
     s: 8,

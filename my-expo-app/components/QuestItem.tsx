@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { theme } from '../styles/theme';
 import { Task } from '../models/TaskModel';
 
@@ -10,8 +10,48 @@ interface QuestItemProps {
 }
 
 export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const checkOpacity = useRef(new Animated.Value(task.completed ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(checkOpacity, {
+      toValue: task.completed ? 1 : 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [task.completed, checkOpacity]);
+
+  const handleToggle = () => {
+    // ちょい弾むスケールアニメーション
+    Animated.sequence([
+      Animated.spring(scale, { toValue: 1.15, useNativeDriver: true, friction: 5, tension: 120 }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 100 }),
+    ]).start();
+    onToggle(task.id);
+  };
+
   return (
     <View style={[styles.container, task.completed && styles.completedContainer]}>
+      {/* 左側チェックボックス */}
+      <TouchableOpacity
+        onPress={handleToggle}
+        activeOpacity={0.8}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={styles.checkboxTouchable}
+      >
+        <Animated.View
+          style={[
+            styles.checkbox,
+            !task.completed ? styles.checkboxGreen : styles.checkboxPurple,
+            { transform: [{ scale }] },
+          ]}
+        >
+          {/* 完了時のみチェックをフェードイン */}
+          <Animated.Text style={[styles.checkmark, { opacity: checkOpacity }]}>✓</Animated.Text>
+        </Animated.View>
+      </TouchableOpacity>
+
+      {/* タスク情報 */}
       <TouchableOpacity style={styles.taskInfo} activeOpacity={0.7} onPress={() => onPress?.(task)}>
         <View style={styles.titleRow}>
           <Text
@@ -31,16 +71,6 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress })
           </Text>
         )}
       </TouchableOpacity>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.button, task.completed ? styles.undoButton : styles.completeButton]}
-          onPress={() => onToggle(task.id)}
-        >
-          <Text style={styles.buttonText}>
-            {task.completed ? '❌まだ' : '✅できた'}
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -59,6 +89,32 @@ const styles = StyleSheet.create({
   completedContainer: {
     backgroundColor: theme.colors.accentSoft,
     opacity: 0.9,
+  },
+  checkboxTouchable: {
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxGreen: {
+    borderColor: theme.colors.accent,
+    backgroundColor: 'transparent',
+  },
+  checkboxPurple: {
+    borderColor: theme.colors.purple,
+    backgroundColor: theme.colors.purple,
+  },
+  checkmark: {
+    color: theme.colors.surface,
+    fontSize: 14,
+    fontWeight: 'bold',
+    lineHeight: 16,
   },
   taskInfo: {
     flex: 1,
@@ -104,27 +160,5 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: theme.colors.subtext,
   },
-  buttonContainer: {
-    justifyContent: 'center',
-  },
-  button: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 80,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  completeButton: {
-    backgroundColor: theme.colors.text,
-  },
-  undoButton: {
-    backgroundColor: theme.colors.muted,
-  },
-  buttonText: {
-    color: theme.colors.surface,
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  // ボタン関連のスタイルは削除（チェックボックスに置換）
 });
