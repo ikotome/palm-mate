@@ -5,6 +5,7 @@ import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
 import { useRouter } from 'expo-router';
 import { jstDateString } from '../utils/time';
+import Markdown from 'react-native-markdown-display';
 
 interface ChatMessage {
   id: string;
@@ -372,7 +373,7 @@ export default function ChatScreen() {
               editable={!isLoading}
             />
           ) : (
-            <Text style={[styles.messageText, styles.aiMessageText]}>{draftText}</Text>
+            <Markdown style={mdChatAI}>{draftText}</Markdown>
           )}
           <View style={styles.draftButtonsRow}>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => setIsEditingDraft(e => !e)}>
@@ -397,12 +398,11 @@ export default function ChatScreen() {
           styles.messageContainer,
           item.isUser ? styles.userMessage : styles.aiMessage
         ]}>
-          <Text style={[
-            styles.messageText,
-            item.isUser ? styles.userMessageText : styles.aiMessageText
-          ]}>
-            {item.text}
-          </Text>
+          {item.isUser ? (
+            <Markdown style={mdChatUser}>{item.text}</Markdown>
+          ) : (
+            <Markdown style={mdChatAI}>{item.text}</Markdown>
+          )}
           <Text style={styles.timestamp}>
             {item.timestamp.toLocaleTimeString('ja-JP', { 
               hour: '2-digit', 
@@ -655,3 +655,64 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+// Markdown styles for chat bubbles
+const baseMd: any = {
+  body: { fontSize: 16, lineHeight: 22 },
+  paragraph: { marginTop: 2, marginBottom: 6 },
+  heading1: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  heading2: { fontSize: 17, fontWeight: '700', marginBottom: 6 },
+  heading3: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  bullet_list: { marginVertical: 4 },
+  ordered_list: { marginVertical: 4 },
+  list_item: {},
+  code_inline: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    fontFamily: 'SpaceMono-Regular',
+  },
+  code_block: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    fontFamily: 'SpaceMono-Regular',
+    lineHeight: 20,
+    marginVertical: 6,
+  },
+  fence: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    fontFamily: 'SpaceMono-Regular',
+    lineHeight: 20,
+    marginVertical: 6,
+  },
+  link: { textDecorationLine: 'underline' },
+  strong: { fontWeight: '700' },
+  em: { fontStyle: 'italic' },
+  blockquote: { borderLeftWidth: 4, paddingLeft: 8 },
+};
+
+const mdChatAI: any = {
+  ...baseMd,
+  body: { ...baseMd.body, color: theme.colors.text },
+  paragraph: baseMd.paragraph,
+  code_inline: { ...baseMd.code_inline, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, color: theme.colors.text },
+  code_block: { ...baseMd.code_block, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, color: theme.colors.text },
+  fence: { ...baseMd.fence, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, color: theme.colors.text },
+  link: { ...baseMd.link, color: '#2563eb' },
+  blockquote: { ...baseMd.blockquote, borderLeftColor: theme.colors.border, color: theme.colors.subtext },
+};
+
+const mdChatUser: any = {
+  ...baseMd,
+  body: { ...baseMd.body, color: '#ffffff' },
+  paragraph: baseMd.paragraph,
+  code_inline: { ...baseMd.code_inline, borderColor: '#ffffff55', backgroundColor: '#ffffff22', color: '#fff' },
+  code_block: { ...baseMd.code_block, borderColor: '#ffffff55', backgroundColor: '#ffffff22', color: '#fff' },
+  fence: { ...baseMd.fence, borderColor: '#ffffff55', backgroundColor: '#ffffff22', color: '#fff' },
+  link: { ...baseMd.link, color: '#bfdbfe' },
+  blockquote: { ...baseMd.blockquote, borderLeftColor: '#ffffff55', color: '#e5e7eb' },
+};

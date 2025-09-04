@@ -7,6 +7,7 @@ import { Journal } from '../../models/JournalModel';
 import { Task } from '../../models/TaskModel';
 import { useFocusEffect } from '@react-navigation/native';
 import GeminiService from '../../services/GeminiService';
+import Markdown from 'react-native-markdown-display';
 
 export default function JournalDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
@@ -216,7 +217,7 @@ export default function JournalDetailScreen() {
                 </View>
               ) : (
                 <>
-                  <Text style={styles.journalContent}>{journal.content}</Text>
+                  <Markdown style={mdStyles}>{journal.content}</Markdown>
                   {journal.aiGenerated && <Text style={styles.aiLabel}>🤖 AI生成</Text>}
                 </>
               )}
@@ -241,7 +242,7 @@ export default function JournalDetailScreen() {
                       maxLength={1200}
                     />
                   ) : (
-                    <Text style={styles.draftText}>{draft}</Text>
+                    <Markdown style={mdStyles}>{draft}</Markdown>
                   )}
                   <View style={styles.draftButtonsRow}>
                     <TouchableOpacity style={styles.secondaryBtn} onPress={() => setIsEditing(e => !e)}>
@@ -325,3 +326,94 @@ const styles = StyleSheet.create({
   emotionChipTextActive: { color: theme.colors.text, fontWeight: '700' },
   emotionDot: { width: 10, height: 10, borderRadius: 5 },
 });
+
+// Markdownスタイル
+const mdStyles: any = {
+  body: {
+    color: theme.colors.text,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  paragraph: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  heading1: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: 6,
+    marginBottom: 8,
+    color: theme.colors.text,
+  },
+  heading2: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 6,
+    color: theme.colors.text,
+  },
+  heading3: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 4,
+    color: theme.colors.text,
+  },
+  list_item: {
+    color: theme.colors.text,
+  },
+  bullet_list: {
+    marginVertical: 6,
+  },
+  ordered_list: {
+    marginVertical: 6,
+  },
+  code_inline: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    fontFamily: 'SpaceMono-Regular',
+    color: theme.colors.text,
+  },
+  fence: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontFamily: 'SpaceMono-Regular',
+    color: theme.colors.text,
+    lineHeight: 22,
+    marginVertical: 8,
+  },
+  code_block: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontFamily: 'SpaceMono-Regular',
+    color: theme.colors.text,
+    lineHeight: 22,
+    marginVertical: 8,
+  },
+  link: {
+    color: '#3b82f6',
+    textDecorationLine: 'underline',
+  },
+  strong: {
+    fontWeight: '700',
+  },
+  em: {
+    fontStyle: 'italic',
+  },
+  blockquote: {
+    borderLeftColor: theme.colors.border,
+    borderLeftWidth: 4,
+    paddingLeft: 10,
+    color: theme.colors.subtext,
+  },
+};
