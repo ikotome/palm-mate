@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
-import { Text, Platform } from "react-native";
+import { Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
 
 export default function RootLayout() {
@@ -26,8 +27,9 @@ export default function RootLayout() {
         name="index"
         options={{
           title: 'ホーム',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 22 }}>🏠</Text>
+          // iOS7風：モノクロのアウトラインアイコン。色はタブのtintで制御
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home-outline" size={26} color={color} />
           ),
         }}
       />
@@ -35,8 +37,8 @@ export default function RootLayout() {
         name="journal"
         options={{
           title: '日記',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 22 }}>📖</Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="book-outline" size={26} color={color} />
           ),
         }}
       />
@@ -51,8 +53,8 @@ export default function RootLayout() {
         name="tasks"
         options={{
           title: 'タスク',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 22 }}>✅</Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="checkmark-circle-outline" size={26} color={color} />
           ),
         }}
       />
@@ -60,8 +62,8 @@ export default function RootLayout() {
         name="settings"
         options={{
           title: '設定',
-          tabBarIcon: ({ focused }) => (
-            <Text style={{ fontSize: focused ? 24 : 22 }}>⚙️</Text>
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="settings-outline" size={26} color={color} />
           ),
         }}
       />
