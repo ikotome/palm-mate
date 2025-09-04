@@ -148,6 +148,15 @@ class DatabaseService {
   return rows.map(this.mapRowToJournalFromDrizzle);
   }
 
+  async getJournalByDate(date: string): Promise<Journal | null> {
+    const rows = await db
+      .select()
+      .from(journals)
+      .where(eq(journals.date, date))
+      .limit(1);
+    return rows[0] ? this.mapRowToJournalFromDrizzle(rows[0]) : null;
+  }
+
   async saveJournal(journal: Omit<Journal, 'id'>): Promise<number> {
   const [res] = await db
       .insert(journals)
@@ -193,6 +202,44 @@ class DatabaseService {
       completedTasks,
       completionRate
     };
+  }
+
+  async getTasksForDate(date: string): Promise<Task[]> {
+    // createdAt が指定日のもの
+    const rows = await db
+      .select()
+      .from(tasks)
+      .where(sql`date(${tasks.createdAt}) = ${date}`)
+      .orderBy(desc(tasks.createdAt));
+    return rows.map(this.mapRowToTaskFromDrizzle);
+  }
+
+  async getCompletedTasksForDate(date: string): Promise<Task[]> {
+    // completedAt が指定日のもの（completed=1）
+    const { start, end } = getDayRangeISO(date);
+    const rows = await db
+      .select()
+      .from(tasks)
+      .where(and(eq(tasks.completed, 1 as any), gte(tasks.completedAt as any, start), lte(tasks.completedAt as any, end)))
+      .orderBy(asc(tasks.completedAt as any));
+    return rows.map(this.mapRowToTaskFromDrizzle);
+  }
+
+  async getTotals(): Promise<{ totalTasks: number; totalCompletedTasks: number; totalJournals: number; }>{
+    const [{ cnt: totalTasks }] = await db
+      .select({ cnt: sql<number>`COUNT(*)` })
+      .from(tasks);
+
+    const [{ cnt: totalCompletedTasks }] = await db
+      .select({ cnt: sql<number>`COUNT(*)` })
+      .from(tasks)
+      .where(eq(tasks.completed, 1 as any));
+
+    const [{ cnt: totalJournals }] = await db
+      .select({ cnt: sql<number>`COUNT(*)` })
+      .from(journals);
+
+    return { totalTasks, totalCompletedTasks, totalJournals };
   }
 
   private mapRowToTaskFromDrizzle(row: any): Task {
