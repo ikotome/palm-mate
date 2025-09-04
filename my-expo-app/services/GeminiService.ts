@@ -59,7 +59,7 @@ class GeminiService {
     userMessage: string,
     aiMessage: string,
     context: string = ''
-  ): Promise<Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }>> {
+  ): Promise<Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }>> {
     // フォールバック: モデル未初期化時は安全に簡易抽出 or 空
   if (!this.genAI || this.isRateLimited()) {
       // ユーザー文に「タスク:」「TODO:」「やること:」行があれば簡易抽出
@@ -69,11 +69,11 @@ class GeminiService {
 
     try {
       const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const prompt = `あなたはタスク抽出エンジンです。以下の会話文脈から、今日/今後すぐに実行可能な新規タスクのみを抽出してください。該当がなければ空配列[]を出力します。
+  const prompt = `あなたはタスク抽出エンジンです。以下の会話文脈から、今日/今後すぐに実行可能な新規タスクのみを抽出してください。該当がなければ空配列[]を出力します。
 
 【出力要件】
 - 厳密なJSONのみを出力。説明文・コードブロック・前置きは不要。
-- 形式: [{"title": string, "description"?: string, "category"?: string, "priority": "low"|"medium"|"high"}]
+- 形式: [{"title": string, "description"?: string, "category"?: string, "priority": "low"|"medium"|"high", "dueDate"?: string}]
 - 「提案」や「検討」だけで具体的行動が不明なものは含めない。
 - 同義重複はまとめる。
 
@@ -102,6 +102,7 @@ AI:\n${aiMessage}`;
             priority: (['low', 'medium', 'high'].includes(String(t.priority))
               ? String(t.priority)
               : 'medium') as 'low' | 'medium' | 'high',
+            dueDate: t.dueDate ? String(t.dueDate).trim() : undefined,
           }));
   }
   // JSONでなくても、モデルが箇条書きを返す場合があるため簡易抽出を併用
@@ -143,8 +144,8 @@ AI:\n${aiMessage}`;
   }
 
   // LLMなし用の簡易抽出: 日本語の列挙や区切りにも対応（最大5件）
-  private simpleExtractFromText(text: string): Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }> {
-    const tasks: Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }> = [];
+  private simpleExtractFromText(text: string): Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }> {
+    const tasks: Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }> = [];
 
     const push = (t: string) => {
       const title = t.replace(/^\d+[\).\-\s]*/, '').trim();
@@ -325,7 +326,7 @@ AI:\n${aiMessage}`;
     recentCompletedTitles?: string[];
     existingTodayTitles?: string[];
     targetCount?: number; // 既定: 5
-  }): Promise<Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }>> {
+  }): Promise<Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }>> {
     const targetCount = input.targetCount ?? 5;
 
     // モデルがない/クォータ超過時のフォールバック
@@ -339,7 +340,7 @@ AI:\n${aiMessage}`;
       const existing = (input.existingTodayTitles || []).join(', ');
       const completed = (input.recentCompletedTitles || []).join(', ');
 
-      const prompt = `あなたはライフコーチ兼タスク設計の専門家です。ユーザーの目標に合わせ、\n「今日すぐに実行できる、具体的で小さな行動」タスクを${targetCount}件、JSONのみで提案してください。
+  const prompt = `あなたはライフコーチ兼タスク設計の専門家です。ユーザーの目標に合わせ、\n「今日すぐに実行できる、具体的で小さな行動」タスクを${targetCount}件、JSONのみで提案してください。
 
 【ユーザーの目標】\n${input.userGoal}\n${input.dreamDescription ? `【補足】\n${input.dreamDescription}` : ''}
 【最近の会話要約】\n${conv || '（会話データなし）'}
@@ -352,14 +353,14 @@ AI:\n${aiMessage}`;
 - 説明は「手順/所要時間/目安の具体」を含める（例: 15分で記事1本、タイマー設定etc）。
 - 出力は厳密JSON配列。形式のみ：
 [
-  {"title": string, "description": string, "category": "健康"|"学習"|"キャリア"|"人間関係"|"趣味"|"その他", "priority": "low"|"medium"|"high"}
+  {"title": string, "description": string, "category": "健康"|"学習"|"キャリア"|"人間関係"|"趣味"|"その他", "priority": "low"|"medium"|"high", "dueDate"?: string}
 ]
 - 説明文や前置きは禁止。JSON以外を出力しない。`;
 
       const result = await model.generateContent(prompt);
       const text = (await result.response).text().trim();
       const arr = this.tryParseJSONArray(text) || [];
-      const out = arr
+  const out = arr
         .filter((t: any) => t && t.title)
         .map((t: any) => {
           const pr = typeof t.priority === 'string' ? t.priority.toLowerCase() : t.priority;
@@ -371,7 +372,8 @@ AI:\n${aiMessage}`;
             title: String(t.title).trim(),
             description: t.description ? String(t.description).trim() : undefined,
             category: t.category ? String(t.category).trim() : undefined,
-            priority,
+    priority,
+    dueDate: t.dueDate ? String(t.dueDate).trim() : undefined,
           };
         });
       if (out.length >= 1) return out.slice(0, targetCount);
@@ -395,9 +397,9 @@ AI:\n${aiMessage}`;
     recentCompleted: string[] | undefined,
     existingToday: string[] | undefined,
     count: number
-  ): Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }> {
+  ): Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }> {
     const taken = new Set([...(recentCompleted || []), ...(existingToday || [])]);
-    const ideasPool: Array<{ title: string; description: string; category: string; priority: 'low' | 'medium' | 'high' }> = [];
+  const ideasPool: Array<{ title: string; description: string; category: string; priority: 'low' | 'medium' | 'high'; dueDate?: string }> = [];
     const base = (goal + ' ' + (desc || '')).toLowerCase();
     const pushIdea = (t: string, d: string, c: string, p: 'low' | 'medium' | 'high') => {
       if (![...taken].some(x => x && x.includes(t))) ideasPool.push({ title: t, description: d, category: c, priority: p });

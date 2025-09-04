@@ -11,6 +11,7 @@ export const tasks = sqliteTable('tasks', {
   completedAt: text('completed_at'),
   category: text('category'),
   priority: text('priority').notNull().default('medium'), // 'low' | 'medium' | 'high'
+  dueDate: text('due_date'), // YYYY-MM-DD 推奨（ISOでも可）
 });
 
 // user_profiles テーブル

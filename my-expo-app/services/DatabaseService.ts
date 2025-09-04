@@ -56,9 +56,14 @@ class DatabaseService {
         created_at TEXT NOT NULL,
         completed_at TEXT,
         category TEXT,
-        priority TEXT DEFAULT 'medium'
+        priority TEXT DEFAULT 'medium',
+        due_date TEXT
       );
     `);
+    // 既存DBに due_date がなければ追加
+    try {
+      sqliteDb.execSync("ALTER TABLE tasks ADD COLUMN due_date TEXT");
+    } catch {}
     sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS user_profiles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,6 +139,7 @@ class DatabaseService {
         createdAt: task.createdAt,
         category: task.category ?? '',
         priority: task.priority,
+  dueDate: task.dueDate ?? null as any,
       })
       .returning({ id: tasks.id });
     return inserted[0]?.id ?? 0;
@@ -153,6 +159,7 @@ class DatabaseService {
     if (updates.title !== undefined) set.title = updates.title;
     if (updates.description !== undefined) set.description = updates.description ?? '';
     if (updates.priority !== undefined) set.priority = updates.priority;
+  if (updates.dueDate !== undefined) set.dueDate = updates.dueDate ?? null;
     if (Object.keys(set).length === 0) return;
   await db.update(tasks).set(set).where(eq(tasks.id, id));
   }
@@ -305,6 +312,7 @@ class DatabaseService {
       completedAt: row.completedAt ?? undefined,
       category: row.category ?? undefined,
       priority: row.priority as Task['priority'],
+  dueDate: row.dueDate ?? undefined,
     };
   }
 

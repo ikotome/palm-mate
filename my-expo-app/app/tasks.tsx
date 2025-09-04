@@ -93,7 +93,8 @@ export default function TasksScreen() {
           description: task.description,
           completed: false,
           createdAt: new Date().toISOString(),
-          priority: (task.priority || 'medium') as 'high' | 'medium' | 'low'
+          priority: (task.priority || 'medium') as 'high' | 'medium' | 'low',
+          dueDate: task.dueDate,
         };
         await DatabaseService.createTask(taskData);
       }
@@ -140,6 +141,7 @@ export default function TasksScreen() {
           completed: false,
           createdAt: new Date().toISOString(),
           priority: t.priority <= 2 ? 'high' : t.priority <= 4 ? 'medium' : 'low',
+          dueDate: undefined,
         });
       }
       await loadTasks();

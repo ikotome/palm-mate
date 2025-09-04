@@ -7,6 +7,7 @@ export interface Task {
   completedAt?: string;
   category?: string;
   priority: 'low' | 'medium' | 'high';
+  dueDate?: string; // 期限（YYYY-MM-DD または ISO）
 }
 
 export interface DailyProgress {

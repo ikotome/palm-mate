@@ -12,9 +12,16 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle }) => {
   return (
     <View style={[styles.container, task.completed && styles.completedContainer]}>
       <View style={styles.taskInfo}>
-        <Text style={[styles.title, task.completed && styles.completedTitle]}>
-          {task.title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, task.completed && styles.completedTitle]}>
+            {task.title}
+          </Text>
+          {task.dueDate && (
+            <View style={styles.dueBadge}>
+              <Text style={styles.dueBadgeText}>期限: {task.dueDate}</Text>
+            </View>
+          )}
+        </View>
         {task.description && (
           <Text style={[styles.description, task.completed && styles.completedDescription]}>
             {task.description}
@@ -59,6 +66,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dueBadge: {
+    marginLeft: 8,
+    backgroundColor: theme.colors.accent,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  dueBadgeText: {
+    fontSize: 12,
+    color: theme.colors.surface,
+    fontWeight: '700',
   },
   completedTitle: {
     textDecorationLine: 'line-through',

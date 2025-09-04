@@ -325,6 +325,7 @@ export default function ChatScreen() {
               priority: t.priority,
               completed: false,
               createdAt,
+              dueDate: t.dueDate,
             });
             createdTitles.push(t.title);
             existingSet.add(key);
