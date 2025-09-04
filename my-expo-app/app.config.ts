@@ -26,6 +26,8 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+  // Push notifications (required for native config in dev/prod builds)
+  'expo-notifications',
     [
       'expo-splash-screen',
       {

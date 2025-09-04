@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 type NightlyOptions = {
@@ -13,6 +14,8 @@ const ANDROID_CHANNEL_ID = 'default';
 
 class NotificationService {
   private initialized = false;
+  private responseListener?: Notifications.Subscription;
+  private receiveListener?: Notifications.Subscription;
 
   async init() {
     if (this.initialized) return;
@@ -76,6 +79,45 @@ class NotificationService {
       } as unknown) as Notifications.NotificationTriggerInput,
     });
     return identifier;
+  }
+
+  // Expo push token (for remote notifications via Expo) — requires development build on SDK 53+
+  async getExpoPushToken(): Promise<string | null> {
+    const ok = await this.ensurePermission();
+    if (!ok) return null;
+
+    // projectId は EAS に紐づいた値。開発ビルドでは Constants.expoConfig?.extra?.eas?.projectId、
+    // 本番ビルドでは Constants.easConfig?.projectId が入る想定。
+    const projectId =
+      (Constants as any)?.expoConfig?.extra?.eas?.projectId ?? (Constants as any)?.easConfig?.projectId;
+
+    try {
+      const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+      return res.data;
+    } catch (e) {
+      // SDK 53 で Expo Go では失敗する（開発ビルドが必要）
+      return null;
+    }
+  }
+
+  addListeners(
+    onReceive?: (n: Notifications.Notification) => void,
+    onResponse?: (r: Notifications.NotificationResponse) => void
+  ) {
+    this.removeListeners();
+    if (onReceive) {
+      this.receiveListener = Notifications.addNotificationReceivedListener(onReceive);
+    }
+    if (onResponse) {
+      this.responseListener = Notifications.addNotificationResponseReceivedListener(onResponse);
+    }
+  }
+
+  removeListeners() {
+    this.receiveListener?.remove();
+    this.responseListener?.remove();
+    this.receiveListener = undefined;
+    this.responseListener = undefined;
   }
 
   async cancelNightlyReminder(): Promise<void> {
