@@ -414,8 +414,13 @@ export default function ChatScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
         <Text style={styles.headerTitle}>💬 AIチャット</Text>
         <Text style={styles.headerSubtitle}>何でも話しかけてくださいね</Text>
         {__DEV__ && (
@@ -430,45 +435,44 @@ export default function ChatScreen() {
             <Text style={styles.debugButtonText}>🧪 タスク抽出テスト</Text>
           </TouchableOpacity>
         )}
-      </View>
+        </View>
 
-      <FlatList
+        <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
         renderItem={renderMessage}
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-      />
-
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>AI が考え中...</Text>
-        </View>
-      )}
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.inputContainer}
-      >
-        <TextInput
-          style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="メッセージを入力..."
-          multiline
-          maxLength={500}
-          editable={!isLoading}
         />
-        <TouchableOpacity
-          style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-          onPress={() => sendMessage()}
-          disabled={!inputText.trim() || isLoading}
-        >
-          <Text style={styles.sendButtonText}>送信</Text>
-        </TouchableOpacity>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>AI が考え中...</Text>
+          </View>
+        )}
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.textInput}
+            value={inputText}
+            onChangeText={setInputText}
+            placeholder="メッセージを入力..."
+            multiline
+            maxLength={500}
+            editable={!isLoading}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+            onPress={() => sendMessage()}
+            disabled={!inputText.trim() || isLoading}
+          >
+            <Text style={styles.sendButtonText}>送信</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

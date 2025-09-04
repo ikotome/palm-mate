@@ -18,6 +18,8 @@ const config: ExpoConfig = {
       backgroundColor: '#ffffff',
     },
     edgeToEdgeEnabled: true,
+  // キーボード表示時にレイアウトをリサイズ（入力欄が隠れないように）
+  softwareKeyboardLayoutMode: 'resize',
   },
   web: {
     bundler: 'metro',

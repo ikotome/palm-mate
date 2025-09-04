@@ -142,6 +142,8 @@ export default function RootLayout() {
         tabBarInactiveTintColor: theme.colors.subtext,
         headerShown: false,
         tabBarShowLabel: false,
+  // Androidでキーボード表示時にタブバーが被らないよう隠す
+  tabBarHideOnKeyboard: true,
         tabBarStyle: {
           height: Platform.OS === 'ios' ? 92 : 80,
           paddingBottom: Platform.OS === 'ios' ? 18 : 12,
