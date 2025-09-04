@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import GeminiService from './services/GeminiService';
+import GeminiService from '../services/GeminiService';
 
 interface ChatMessage {
   id: string;

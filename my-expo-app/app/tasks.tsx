@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import DatabaseService from './services/DatabaseService';
-import GeminiService, { PersonalizedTask } from './services/GeminiService';
-import { Task } from './models/TaskModel';
-import { UserProfile } from './models/UserModel';
-import { QuestList } from './components/QuestList';
+import DatabaseService from '../services/DatabaseService';
+import GeminiService, { PersonalizedTask } from '../services/GeminiService';
+import { Task } from '../models/TaskModel';
+import { UserProfile } from '../models/UserModel';
+import { QuestList } from '../components/QuestList';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);

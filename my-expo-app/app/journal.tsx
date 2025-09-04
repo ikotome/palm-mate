@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Journal } from './models/JournalModel';
-import DatabaseService from './services/DatabaseService';
-import GeminiService from './services/GeminiService';
+import { Journal } from '../models/JournalModel';
+import DatabaseService from '../services/DatabaseService';
+import GeminiService from '../services/GeminiService';
 
 export default function JournalScreen() {
   const [journals, setJournals] = useState<Journal[]>([]);

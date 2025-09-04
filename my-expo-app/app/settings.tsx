@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal } from 'react-native';
-import StackChanService from './services/StackChanService';
-import DatabaseService from './services/DatabaseService';
-import { UserProfile } from './models/UserModel';
+import StackChanService from '../services/StackChanService';
+import DatabaseService from '../services/DatabaseService';
+import { UserProfile } from '../models/UserModel';
 
 export default function SettingsScreen() {
   const [stackChanConnected, setStackChanConnected] = useState(false);

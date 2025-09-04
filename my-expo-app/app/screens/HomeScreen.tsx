@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Alert, TextInput, Modal, ScrollView } from 'react-native';
-import DatabaseService from '../services/DatabaseService';
-import GeminiService from '../services/GeminiService';
-import { UserProfile } from '../models/UserModel';
-import { OnboardingScreen } from '../components/OnboardingScreen';
+import DatabaseService from '../../services/DatabaseService';
+import GeminiService from '../../services/GeminiService';
+import { UserProfile } from '../../models/UserModel';
+import { OnboardingScreen } from '../../components/OnboardingScreen';
 
 export const HomeScreen: React.FC = () => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
