@@ -1,9 +1,21 @@
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
+import { Platform, TouchableOpacity } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
 
 export default function RootLayout() {
+  const HapticTabBarButton = (props: any) => (
+    <TouchableOpacity
+      {...props}
+      onPress={(e) => {
+        if (Platform.OS === 'ios') {
+          Haptics.selectionAsync().catch(() => {});
+        }
+        props.onPress?.(e);
+      }}
+    />
+  );
   return (
     <Tabs
       screenOptions={{
@@ -31,6 +43,7 @@ export default function RootLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="home-outline" size={26} color={color} />
           ),
+          tabBarButton: (props) => <HapticTabBarButton {...props} />,
         }}
       />
       <Tabs.Screen
@@ -40,6 +53,7 @@ export default function RootLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="book-outline" size={26} color={color} />
           ),
+          tabBarButton: (props) => <HapticTabBarButton {...props} />,
         }}
       />
       {/* タブには出さないジャーナルの詳細画面（プッシュ遷移のみ） */}
@@ -56,6 +70,7 @@ export default function RootLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="checkmark-circle-outline" size={26} color={color} />
           ),
+          tabBarButton: (props) => <HapticTabBarButton {...props} />,
         }}
       />
       <Tabs.Screen
@@ -65,6 +80,7 @@ export default function RootLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="settings-outline" size={26} color={color} />
           ),
+          tabBarButton: (props) => <HapticTabBarButton {...props} />,
         }}
       />
       {/* タブには出さないチャット画面（プッシュ遷移のみ） */}
