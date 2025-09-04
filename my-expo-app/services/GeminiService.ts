@@ -573,6 +573,78 @@ ${userMessage}`;
     return `なるほど。「${userMessage}」について考えているんですね。無理せず、一歩ずつ進めていきましょう。できそうな最初の小さな一歩は何でしょう？`;
   }
 
+  /**
+   * 会話から当日のタスク完了を検出します。
+   * 戻り値は todayTaskTitles に含まれるタイトルのうち、完了と推定されるものの配列。
+   */
+  async detectCompletedTasksFromText(
+    userMessage: string,
+    aiMessage: string,
+    todayTaskTitles: string[]
+  ): Promise<string[]> {
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+    const safeTitles = (todayTaskTitles || []).filter(Boolean);
+    if (safeTitles.length === 0) return [];
+
+    const combined = `${userMessage}\n${aiMessage}`;
+
+    // レート制限・未初期化時はローカル簡易検出
+    if (!this.genAI || this.isRateLimited()) {
+      return this.simpleDetectCompleted(combined, safeTitles);
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const list = safeTitles.map((t) => `- ${t}`).join('\n');
+      const prompt = `あなたはアシスタントです。以下の会話から「実際にその場で完了した・やり終えた」と解釈できる当日のタスクのみを厳選し、与えられた候補タイトルの中から一致するものをJSON配列で返してください。
+
+【候補タスクタイトル】\n${list}
+【会話】\n${combined}
+
+出力要件（厳守）:
+- JSON配列のみ。例: ["読書", "ストレッチ"]
+- 候補にないタイトルは含めない
+- 推測が弱い/未来の予定/提案だけは含めない
+- 実際の完了・実施が読み取れる場合のみ含める`;
+
+      const result = await model.generateContent(prompt);
+      const text = (await result.response).text().trim();
+      const arr = this.tryParseJSONArray(text);
+      const picked = Array.isArray(arr) ? arr.map((x) => String(x)) : [];
+      // 安全のため候補に含まれるものだけに制限
+      const set = new Set(safeTitles);
+      return uniq(picked.filter((t) => set.has(t)));
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : String(e);
+      if (msg.includes('429') || msg.toLowerCase().includes('quota')) {
+        const retrySec = this.parseRetrySecondsFromError(e);
+        this.enableRateLimitCooldown(retrySec);
+      } else {
+        console.warn('detectCompletedTasksFromText failed. Using local fallback.');
+      }
+      return this.simpleDetectCompleted(combined, safeTitles);
+    }
+  }
+
+  // ローカル簡易検出：完了表現 + タイトル出現でマッチ
+  private simpleDetectCompleted(text: string, titles: string[]): string[] {
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+    const normalized = (s: string) => s.replace(/[\s\u3000]+/g, '').toLowerCase();
+    const body = normalized(text);
+    // 代表的な完了表現（語幹含む）
+    const doneRegex = /やった|やり終|終わっ|完了|済ん|できた|片付け|達成|提出|送っ|買っ|購入|行っ|チェック(した|済み|完了)?/;
+
+    if (!doneRegex.test(body)) return [];
+
+    const out: string[] = [];
+    for (const t of titles) {
+      const key = normalized(t);
+      if (!key || key.length < 2) continue;
+      if (body.includes(key)) out.push(t);
+    }
+    return uniq(out);
+  }
+
   // ===== Tone selection helpers (private) =====
   private async determineJournalTone(
     userConversations: string[] = [],

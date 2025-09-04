@@ -273,6 +273,38 @@ export default function ChatScreen() {
         timestamp: new Date().toISOString(),
       });
 
+      // === タスク自動完了検出・反映 ===
+      try {
+        const todayTasks = await DatabaseService.getTodayTasks();
+        const titles = todayTasks.map(t => t.title);
+        const detectedDone = await GeminiService.detectCompletedTasksFromText(
+          userMessage.text,
+          aiResponse,
+          titles
+        );
+        if (detectedDone.length > 0) {
+          const titleSet = new Set(detectedDone);
+          let updatedCount = 0;
+          for (const t of todayTasks) {
+            if (!t.completed && titleSet.has(t.title)) {
+              await DatabaseService.updateTask(t.id, { completed: true });
+              updatedCount++;
+            }
+          }
+          if (updatedCount > 0) {
+            const confirm: ChatMessage = {
+              id: (Date.now() + 7).toString(),
+              text: `✅ ${updatedCount}件のタスクを完了にしました:\n- ${detectedDone.join('\n- ')}`,
+              isUser: false,
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, confirm]);
+          }
+        }
+      } catch (autoDoneErr) {
+        // 検出失敗は致命的でないので無視
+      }
+
       // === タスク自動抽出・作成（AIが抽出できたとき自動作成） ===
       try {
         const extracted = await GeminiService.extractTasksFromText(
