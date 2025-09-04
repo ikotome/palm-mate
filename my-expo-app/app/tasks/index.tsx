@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, InteractionManager } from 'react-native';
-import { theme } from '../styles/theme';
-import DatabaseService from '../services/DatabaseService';
-import GeminiService from '../services/GeminiService';
-import { Task } from '../models/TaskModel';
-import { UserProfile } from '../models/UserModel';
-import { QuestList } from '../components/QuestList';
+import { theme } from '../../styles/theme';
+import DatabaseService from '../../services/DatabaseService';
+import GeminiService from '../../services/GeminiService';
+import { Task } from '../../models/TaskModel';
+import { UserProfile } from '../../models/UserModel';
+import { QuestList } from '../../components/QuestList';
 import { useFocusEffect } from '@react-navigation/native';
-import { jstDateString } from '../utils/time';
+import { jstDateString } from '../../utils/time';
+import { router } from 'expo-router';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -18,7 +19,6 @@ export default function TasksScreen() {
   useEffect(() => {
     loadTasks();
     loadUserProfile();
-    // 画面遷移アニメ完了後に重い処理を実行
     const task = InteractionManager.runAfterInteractions(async () => {
       await ensureDailyTasks();
       try {
@@ -32,12 +32,10 @@ export default function TasksScreen() {
     return () => task.cancel?.();
   }, []);
 
-  // 画面フォーカス時に最新データを再取得
   useFocusEffect(
     useCallback(() => {
       loadTasks();
       loadUserProfile();
-      // フォーカスごとに自動生成は行わない（重複防止）
       return undefined;
     }, [])
   );
@@ -62,19 +60,16 @@ export default function TasksScreen() {
 
   const generateNewTasks = async () => {
     if (loading) return;
-    
     setLoading(true);
     try {
       const goal = userProfile?.dreamSelf || '今の自分を少し良くする';
       const desc = userProfile?.dreamDescription || goal;
-      // 文脈収集
       const recentConvs = (await DatabaseService.getRecentConversations(10)).map(c => `ユーザー: ${c.userMessage}\nAI: ${c.aiResponse}`);
       const todayExisting = (await DatabaseService.getTodayTasks()).map(t => t.title);
-  // 日本時間での昨日
-  const todayJst = jstDateString();
-  const base = new Date(`${todayJst}T00:00:00+09:00`);
-  base.setUTCDate(base.getUTCDate() - 1);
-  const yyyymmdd = jstDateString(new Date(base));
+      const todayJst = jstDateString();
+      const base = new Date(`${todayJst}T00:00:00+09:00`);
+      base.setUTCDate(base.getUTCDate() - 1);
+      const yyyymmdd = jstDateString(new Date(base));
       const yCompleted = (await DatabaseService.getCompletedTasksByDate(yyyymmdd)).map(t => t.title);
 
       const concrete = await GeminiService.generateConcretePersonalizedTasks({
@@ -85,9 +80,7 @@ export default function TasksScreen() {
         recentCompletedTitles: yCompleted,
         targetCount: 5,
       });
-      
       for (const task of concrete) {
-        // PersonalizedTaskをTaskに変換
         const taskData = {
           title: task.title,
           description: task.description,
@@ -98,7 +91,6 @@ export default function TasksScreen() {
         };
         await DatabaseService.createTask(taskData);
       }
-      
       await loadTasks();
     } catch (error) {
       console.error('Failed to generate tasks:', error);
@@ -107,32 +99,28 @@ export default function TasksScreen() {
     }
   };
 
-  // 1日1回の自動生成: 目安5個。既に今日のタスクがあれば不足分のみ補充。
   const ensureDailyTasks = async () => {
     try {
-  const profile = await DatabaseService.getUserProfile();
+      const profile = await DatabaseService.getUserProfile();
       const todayCount = await DatabaseService.getTodaysTasksCount();
-      const target = 5; // 目安個数
+      const target = 5;
       let toCreate = 0;
-      if (todayCount >= target) return; // 既に十分
+      if (todayCount >= target) return;
       if (todayCount === 0) {
-        // 初回は必ず5件用意（前日達成があれば今後の難易度調整に活用予定）
         toCreate = target;
       } else {
         toCreate = target - todayCount;
       }
       if (toCreate <= 0) return;
 
-      // Geminiから候補を取得し、必要数のみ追加
-  const goal = profile?.dreamSelf || '今の自分を少し良くする';
-  const desc = profile?.dreamDescription || goal;
-  const candidates = await GeminiService.generatePersonalizedTasks(goal, desc);
+      const goal = profile?.dreamSelf || '今の自分を少し良くする';
+      const desc = profile?.dreamDescription || goal;
+      const candidates = await GeminiService.generatePersonalizedTasks(goal, desc);
       let selected = candidates.slice(0, Math.max(0, toCreate));
-      // 候補が少ない場合はサンプルを繰り返し補充
       while (selected.length < toCreate) {
         const more = await GeminiService.generatePersonalizedTasks(goal, desc);
         selected = selected.concat(more).slice(0, toCreate);
-        if (more.length === 0) break; // 念のため無限ループ防止
+        if (more.length === 0) break;
       }
       for (const t of selected) {
         await DatabaseService.createTask({
@@ -160,7 +148,6 @@ export default function TasksScreen() {
     try {
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
-
       await DatabaseService.updateTask(taskId, { 
         completed: !task.completed,
         completedAt: !task.completed ? new Date().toISOString() : undefined
@@ -171,8 +158,9 @@ export default function TasksScreen() {
     }
   };
 
-  const completedTasks = tasks.filter(task => task.completed);
-  const incompleteTasks = tasks.filter(task => !task.completed);
+  const handlePressTask = (task: Task) => {
+    router.push(`/tasks/${task.id}`);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,7 +176,6 @@ export default function TasksScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* タスク生成ボタン */}
         <View style={styles.actionSection}>
           <TouchableOpacity 
             style={[styles.generateButton, loading && styles.generateButtonDisabled]}
@@ -208,7 +195,6 @@ export default function TasksScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ユーザー目標表示 */}
         {userProfile && (
           <View style={styles.goalSection}>
             <Text style={styles.goalTitle}>🎯 あなたの目標</Text>
@@ -220,7 +206,7 @@ export default function TasksScreen() {
             </View>
           </View>
         )}
-        {/* 今日のクエスト一覧（ページ表示） */}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 今日のクエスト</Text>
           <QuestList
@@ -228,6 +214,7 @@ export default function TasksScreen() {
             onToggleTask={handleTaskToggle}
             dreamSelf={userProfile?.dreamSelf}
             variant="page"
+            onPressTask={handlePressTask}
           />
         </View>
       </ScrollView>
@@ -236,102 +223,22 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    backgroundColor: theme.colors.surface,
-    padding: 20,
-    paddingTop: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: theme.colors.subtext,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  content: {
-  flex: 1,
-  padding: 15,
-  },
-  actionSection: {
-    marginBottom: 20,
-  },
-  generateButton: {
-    backgroundColor: theme.colors.text,
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    shadowColor: 'transparent',
-  },
-  generateButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  generateButtonText: {
-    color: theme.colors.surface,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  pruneButton: {
-    backgroundColor: theme.colors.muted,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  pruneButtonText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 12,
-  },
-  goalSection: {
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  goalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 12,
-  },
-  goalCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 15,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  goalText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 8,
-  },
-  goalDescription: {
-    fontSize: 14,
-    color: theme.colors.subtext,
-    lineHeight: 20,
-  },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  header: { backgroundColor: theme.colors.surface, padding: 20, paddingTop: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.text, textAlign: 'center' },
+  headerSubtitle: { fontSize: 14, color: theme.colors.subtext, textAlign: 'center', marginTop: 4 },
+  content: { flex: 1, padding: 15 },
+  actionSection: { marginBottom: 20 },
+  generateButton: { backgroundColor: theme.colors.text, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20, alignItems: 'center', shadowColor: 'transparent' },
+  generateButtonDisabled: { backgroundColor: '#ccc' },
+  generateButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' },
+  pruneButton: { backgroundColor: theme.colors.muted, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: theme.colors.border },
+  pruneButtonText: { color: theme.colors.text, fontSize: 14, fontWeight: '600' },
+  section: { marginBottom: 25 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 12 },
+  goalSection: { marginTop: 20, marginBottom: 30 },
+  goalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 12 },
+  goalCard: { backgroundColor: theme.colors.surface, borderRadius: 15, padding: 20, borderWidth: 1, borderColor: theme.colors.border },
+  goalText: { fontSize: 16, fontWeight: '600', color: theme.colors.text, marginBottom: 8 },
+  goalDescription: { fontSize: 14, color: theme.colors.subtext, lineHeight: 20 },
 });

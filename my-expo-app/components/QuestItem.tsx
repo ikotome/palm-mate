@@ -6,14 +6,17 @@ import { Task } from '../models/TaskModel';
 interface QuestItemProps {
   task: Task;
   onToggle: (taskId: number) => void;
+  onPress?: (task: Task) => void;
 }
 
-export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle }) => {
+export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress }) => {
   return (
     <View style={[styles.container, task.completed && styles.completedContainer]}>
-      <View style={styles.taskInfo}>
+      <TouchableOpacity style={styles.taskInfo} activeOpacity={0.7} onPress={() => onPress?.(task)}>
         <View style={styles.titleRow}>
-          <Text style={[styles.title, task.completed && styles.completedTitle]}>
+          <Text
+            style={[styles.title, styles.titleFlex, task.completed && styles.completedTitle]}
+          >
             {task.title}
           </Text>
           {task.dueDate && (
@@ -27,7 +30,7 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle }) => {
             {task.description}
           </Text>
         )}
-      </View>
+      </TouchableOpacity>
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, task.completed ? styles.undoButton : styles.completeButton]}
@@ -69,7 +72,12 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  },
+  titleFlex: {
+    flex: 1,
+    marginRight: 8,
   },
   dueBadge: {
     marginLeft: 8,
@@ -77,6 +85,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2,
+  alignSelf: 'flex-start',
   },
   dueBadgeText: {
     fontSize: 12,

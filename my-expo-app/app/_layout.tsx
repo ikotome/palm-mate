@@ -237,6 +237,7 @@ export default function RootLayout() {
           ),
         }}
       />
+  {/* タスク詳細は tasks/_layout の Stack 管理に委譲 */}
       <Tabs.Screen
         name="settings"
         options={{

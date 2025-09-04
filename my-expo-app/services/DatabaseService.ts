@@ -110,6 +110,11 @@ class DatabaseService {
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
+  async getTaskById(id: number): Promise<Task | null> {
+    const rows = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+    return rows[0] ? this.mapRowToTaskFromDrizzle(rows[0]) : null;
+  }
+
   async getTodayTasks(): Promise<Task[]> {
     const { start, end } = getJstDayUtcRange();
     const rows = await db
