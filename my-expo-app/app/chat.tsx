@@ -272,32 +272,37 @@ export default function ChatScreen() {
         timestamp: new Date().toISOString(),
       });
 
-      // === タスク自動抽出・作成（明示的な意図がある時のみ） ===
+      // === タスク自動抽出・作成（AIが抽出できたとき自動作成） ===
       try {
-        const intent = userMessage.text;
-        const wantsTasks = /(タスク|TODO|やること|計画|プラン|スケジュール)/.test(intent) || /箇条書き|リスト/.test(intent);
-        if (wantsTasks) {
-          const extracted = await GeminiService.extractTasksFromText(
-            userMessage.text,
-            aiResponse,
-            context ? `過去のメッセージ:\n${context}` : ''
+        const extracted = await GeminiService.extractTasksFromText(
+          userMessage.text,
+          aiResponse,
+          context ? `過去のメッセージ:\n${context}` : ''
+        );
+
+        if (extracted && extracted.length > 0) {
+          const createdTitles: string[] = [];
+          // 同日重複タイトルを回避（既存+今回生成分を含むSet）
+          const existingSet = new Set(
+            (await DatabaseService.getTodayTasks()).map(tt => tt.title.trim().toLowerCase())
           );
+          for (const t of extracted) {
+            const key = (t.title || '').trim().toLowerCase();
+            if (!key || existingSet.has(key)) continue;
+            const createdAt = new Date().toISOString();
+            await DatabaseService.addTask({
+              title: t.title,
+              description: t.description,
+              category: t.category,
+              priority: t.priority,
+              completed: false,
+              createdAt,
+            });
+            createdTitles.push(t.title);
+            existingSet.add(key);
+          }
 
-          if (extracted && extracted.length > 0) {
-            const createdTitles: string[] = [];
-            for (const t of extracted) {
-              const createdAt = new Date().toISOString();
-              await DatabaseService.addTask({
-                title: t.title,
-                description: t.description,
-                category: t.category,
-                priority: t.priority,
-                completed: false,
-                createdAt,
-              });
-              createdTitles.push(t.title);
-            }
-
+          if (createdTitles.length > 0) {
             const summaryMessage: ChatMessage = {
               id: (Date.now() + 2).toString(),
               text: `📝 ${createdTitles.length}件のタスクを追加しました:\n- ${createdTitles.join('\n- ')}`,
