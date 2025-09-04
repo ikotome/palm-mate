@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
 import { theme } from '../../styles/theme';
 import { jstDateString } from '../../utils/time';
 import DatabaseService from '../../services/DatabaseService';
@@ -13,10 +13,33 @@ export const HomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState<string>('');
   const router = useRouter();
+  const swayAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     initializeApp();
   }, []);
+
+  // アバターを常時左右にスイングさせるアニメーション（緩やかで自然な揺れ）
+  useEffect(() => {
+  const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(swayAnim, {
+          toValue: 1,
+      duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(swayAnim, {
+          toValue: 0,
+      duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [swayAnim]);
 
   const initializeApp = async () => {
     try {
@@ -137,9 +160,27 @@ export const HomeScreen: React.FC = () => {
       <View style={styles.content}>
         {/* アバター表示エリア */}
         <View style={styles.avatarContainer}>
-          <Image 
-            source={require('../../assets/my-image.png')} 
-            style={styles.avatarImage}
+          <Animated.Image
+            source={require('../../assets/my-image.png')}
+            style={[
+              styles.avatarImage,
+              {
+                transform: [
+                  {
+                    rotate: swayAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['-2.8deg', '2.8deg'],
+                    }),
+                  },
+                  {
+                    translateX: swayAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-4, 4],
+                    }),
+                  },
+                ],
+              },
+            ]}
             resizeMode="contain"
           />
         </View>
