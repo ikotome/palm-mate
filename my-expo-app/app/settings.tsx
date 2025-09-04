@@ -129,6 +129,28 @@ export default function SettingsScreen() {
     );
   };
 
+  const seedDummyLast30Days = () => {
+    const run = async () => {
+      try {
+        await DatabaseService.initializeDatabase();
+        const { tasks, journals } = await DatabaseService.seedDummyData(30);
+        Alert.alert('完了', `ダミーデータを作成しました\nタスク: ${tasks} 件\n日記: ${journals} 件`);
+      } catch (e) {
+        console.error(e);
+        Alert.alert('エラー', 'ダミーデータの作成に失敗しました');
+      }
+    };
+
+    Alert.alert(
+      'ダミーデータ生成',
+      '過去30日分のタスクと日記をランダムに作成します。既存の同日日記は上書きされます。よろしいですか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '実行', style: 'default', onPress: run },
+      ]
+    );
+  };
+
   const appVersion = '1.0.0';
   const buildNumber = '1';
 
@@ -253,6 +275,13 @@ export default function SettingsScreen() {
           <View style={styles.debugCard}>
             <TouchableOpacity style={styles.debugButton} onPress={clearAllData}>
               <Text style={styles.debugButtonText}>🗑️ 全データ削除</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.debugButton} 
+              onPress={seedDummyLast30Days}
+            >
+              <Text style={styles.debugButtonText}>🧪 過去30日ダミーデータ生成</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

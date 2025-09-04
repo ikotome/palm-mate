@@ -415,6 +415,95 @@ class DatabaseService {
       topic: row.topic ?? undefined,
     };
   }
+
+  /**
+   * デバッグ用途：過去 `days` 日分のタスクと日記を適当に生成します。
+   * - タスク: 0-5件/日、完了/未完了をランダム、completedAt は当日内のランダム時刻
+   * - 日記: 70%の確率で1件/日（同日が既にある場合は upsert）
+   * 戻り値は作成件数の集計。
+   */
+  async seedDummyData(days: number = 30): Promise<{ tasks: number; journals: number }> {
+    const emotions = [
+      'happy', 'excited', 'peaceful', 'thoughtful', 'grateful', 'determined',
+      'confident', 'curious', 'content', 'hopeful', 'sad', 'angry', 'calm', 'neutral',
+    ] as const;
+
+    const taskTitles = [
+      'ストレッチ', '読書', '瞑想', '散歩', '水分補給', 'ToDo整理', '日記を書く', '片付け', '英語学習', '学習メモ',
+    ];
+
+    const pick = <T,>(arr: readonly T[]) => arr[Math.floor(Math.random() * arr.length)];
+    const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    const toDateStr = (d: Date) => {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${dd}`;
+    };
+
+    const isoAt = (baseDate: Date, h: number, m: number, s: number) => {
+      const d = new Date(Date.UTC(baseDate.getUTCFullYear(), baseDate.getUTCMonth(), baseDate.getUTCDate(), h, m, s, randInt(0, 999)));
+      return d.toISOString();
+    };
+
+    let taskCount = 0;
+    let journalCount = 0;
+
+    for (let i = days - 1; i >= 0; i--) {
+      const base = new Date();
+      // UTC基準で i 日前
+      base.setUTCDate(base.getUTCDate() - i);
+      const dayStr = toDateStr(base);
+
+      // タスク生成（0-5件）
+      const nTasks = randInt(0, 5);
+      for (let t = 0; t < nTasks; t++) {
+        const createdAt = isoAt(base, randInt(7, 21), randInt(0, 59), randInt(0, 59));
+        const completed = Math.random() < 0.6; // 60%で完了
+        const completedAt = completed ? isoAt(base, randInt(8, 23), randInt(0, 59), randInt(0, 59)) : null;
+        const priority = (['low', 'medium', 'high'] as const)[randInt(0, 2)];
+
+        await db.insert(tasks).values({
+          title: pick(taskTitles),
+          description: '',
+          completed: completed ? 1 : 0,
+          createdAt,
+          completedAt: completedAt as any,
+          category: '',
+          priority,
+        });
+        taskCount++;
+      }
+
+      // 日記生成（70%で作成）
+      if (Math.random() < 0.7) {
+        const createdAt = isoAt(base, randInt(19, 22), randInt(0, 59), randInt(0, 59));
+        const updatedAt = createdAt;
+        const emotion = pick(emotions);
+        const contentSamples = [
+          '今日は小さな一歩が踏み出せた。気分は上々。',
+          '少し疲れたけど、前に進めている感じがする。',
+          '集中できた時間があった。続けていきたい。',
+          'やり残しはあるけれど、今は十分。',
+          '新しい発見があった日。メモしておこう。',
+        ];
+
+        await this.saveJournal({
+          date: dayStr,
+          title: undefined,
+          content: pick(contentSamples),
+          emotion: emotion as any,
+          aiGenerated: true,
+          createdAt,
+          updatedAt,
+        });
+        journalCount++;
+      }
+    }
+
+    return { tasks: taskCount, journals: journalCount };
+  }
 }
 
 export default new DatabaseService();
