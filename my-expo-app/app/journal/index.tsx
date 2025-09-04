@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SafeAreaView, View, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent, Text } from 'react-native';
+import { SafeAreaView, View, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent, Text, InteractionManager } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -43,15 +43,18 @@ export default function JournalSummaryScreen() {
   }>({ visible: false, left: 0, top: 0, date: '', count: 0, hasJournal: false });
 
   useEffect(() => {
-    const load = async () => {
-      const [js, start] = await Promise.all([
-        DatabaseService.getJournals(),
-        DatabaseService.getAppStartDate(),
-      ]);
-      setJournals(js);
-      setAppStartDate(start);
-    };
-    load();
+    const task = InteractionManager.runAfterInteractions(() => {
+      const load = async () => {
+        const [js, start] = await Promise.all([
+          DatabaseService.getJournals(),
+          DatabaseService.getAppStartDate(),
+        ]);
+        setJournals(js);
+        setAppStartDate(start);
+      };
+      load();
+    });
+    return () => task.cancel?.();
   }, []);
 
   // 今日から visibleDays-1 日前までの配列（古い→新しい順）: ローカル日付で作成

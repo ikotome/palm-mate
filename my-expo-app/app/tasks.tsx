@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, InteractionManager } from 'react-native';
 import { theme } from '../styles/theme';
 import DatabaseService from '../services/DatabaseService';
 import GeminiService from '../services/GeminiService';
@@ -16,11 +16,11 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-  loadTasks();
-  loadUserProfile();
-  ensureDailyTasks();
-    // 初回ロード時に多すぎる場合は5件に整理
-    (async () => {
+    loadTasks();
+    loadUserProfile();
+    // 画面遷移アニメ完了後に重い処理を実行
+    const task = InteractionManager.runAfterInteractions(async () => {
+      await ensureDailyTasks();
       try {
         const count = await DatabaseService.getTodaysTasksCount();
         if (count > 5) {
@@ -28,7 +28,8 @@ export default function TasksScreen() {
           await loadTasks();
         }
       } catch {}
-    })();
+    });
+    return () => task.cancel?.();
   }, []);
 
   // 画面フォーカス時に最新データを再取得
@@ -189,7 +190,7 @@ export default function TasksScreen() {
         <View style={styles.actionSection}>
           <TouchableOpacity 
             style={[styles.generateButton, loading && styles.generateButtonDisabled]}
-            onPress={async () => { await ensureDailyTasks(); await generateNewTasks(); }}
+            onPress={async () => { await generateNewTasks(); }}
             disabled={loading}
           >
             <Text style={styles.generateButtonText}>

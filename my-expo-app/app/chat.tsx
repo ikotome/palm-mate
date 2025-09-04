@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, InteractionManager } from 'react-native';
 import { theme } from '../styles/theme';
 import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
@@ -39,8 +39,8 @@ export default function ChatScreen() {
         timestamp: new Date(),
       },
     ]);
-    // 夜なら「質問」ではなく「自動下書き生成→レビュー」を提案
-    (async () => {
+    // 夜なら「質問」ではなく「自動下書き生成→レビュー」を提案（遷移アニメ後に遅延）
+    const task = InteractionManager.runAfterInteractions(async () => {
       const hour = new Date().getHours();
       if (hour < 19) return; // 19時以降に提案
       const today = jstDateString();
@@ -60,7 +60,8 @@ export default function ChatScreen() {
       } catch (e) {
         // 失敗時は黙って通常モード
       }
-    })();
+    });
+    return () => task.cancel?.();
   }, []);
 
   // 下書きフロー開始（自動/手動）
@@ -111,7 +112,7 @@ export default function ChatScreen() {
     }
   };
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = useCallback(async () => {
     if (!draftDate || !draftText.trim()) return;
     setIsLoading(true);
     try {
@@ -149,9 +150,9 @@ export default function ChatScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [draftDate, draftText, router]);
 
-  const handleRegenerateDraft = async () => {
+  const handleRegenerateDraft = useCallback(async () => {
     if (!draftDate) return;
     setIsLoading(true);
     try {
@@ -164,9 +165,9 @@ export default function ChatScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [draftDate]);
 
-  const clearDraft = () => {
+  const clearDraft = useCallback(() => {
     setIsDraftVisible(false);
     setIsEditingDraft(false);
     setDraftText('');
@@ -175,9 +176,9 @@ export default function ChatScreen() {
       setMessages(prev => prev.filter(m => m.id !== draftMessageIdRef.current));
       draftMessageIdRef.current = null;
     }
-  };
+  }, []);
 
-  const sendMessage = async (textOverride?: string) => {
+  const sendMessage = useCallback(async (textOverride?: string) => {
     const payload = (textOverride ?? inputText).trim();
     if (!payload || isLoading) return;
 
@@ -353,9 +354,9 @@ export default function ChatScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [inputText, isLoading, messages]);
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => (
+  const renderMessage = useCallback(({ item }: { item: ChatMessage }) => (
     <View>
       {item.type === 'draft' && isDraftVisible ? (
         <View style={[styles.messageContainer, styles.aiMessage]}>
@@ -411,7 +412,11 @@ export default function ChatScreen() {
         </View>
       )}
     </View>
-  );
+  ), [isDraftVisible, draftText, isEditingDraft, isLoading, handleRegenerateDraft, handleSaveDraft, clearDraft]);
+
+  const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
+
+  // 可変高さのため getItemLayout は未指定（誤差による跳ねを防止）
 
   return (
     <KeyboardAvoidingView
@@ -438,13 +443,17 @@ export default function ChatScreen() {
         </View>
 
         <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        style={styles.messagesList}
-        contentContainerStyle={styles.messagesContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+          data={messages}
+          keyExtractor={keyExtractor}
+          renderItem={renderMessage}
+          style={styles.messagesList}
+          contentContainerStyle={styles.messagesContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS !== 'web'}
         />
 
         {isLoading && (

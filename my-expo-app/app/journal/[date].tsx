@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, InteractionManager } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import DatabaseService from '../../services/DatabaseService';
@@ -20,15 +20,18 @@ export default function JournalDetailScreen() {
 
   useEffect(() => {
     if (!date) return;
-    const load = async () => {
-      const [j, t] = await Promise.all([
-        DatabaseService.getJournalByDate(String(date)),
-        DatabaseService.getCompletedTasksByDate(String(date)),
-      ]);
-      setJournal(j);
-      setTasks(t);
-    };
-    load();
+    const task = InteractionManager.runAfterInteractions(() => {
+      const load = async () => {
+        const [j, t] = await Promise.all([
+          DatabaseService.getJournalByDate(String(date)),
+          DatabaseService.getCompletedTasksByDate(String(date)),
+        ]);
+        setJournal(j);
+        setTasks(t);
+      };
+      load();
+    });
+    return () => task.cancel?.();
   }, [date]);
 
   // フォーカス時にも再取得

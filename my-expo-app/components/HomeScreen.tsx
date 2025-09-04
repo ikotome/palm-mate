@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Animated, Easing, InteractionManager } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { theme } from '../styles/theme';
 import DatabaseService from '../services/DatabaseService';
 import { UserProfile } from '../models/UserModel';
@@ -15,12 +16,16 @@ export const HomeScreen: React.FC = () => {
   const swayAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    initializeApp();
+    // 遷移完了後に初期化
+    const task = InteractionManager.runAfterInteractions(() => {
+      initializeApp();
+    });
+    return () => task.cancel?.();
   }, []);
 
   // アバターを常時左右にスイングさせるアニメーション（緩やかで自然な揺れ）
   useEffect(() => {
-  const loop = Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(swayAnim, {
           toValue: 1,
@@ -36,8 +41,12 @@ export const HomeScreen: React.FC = () => {
         }),
       ])
     );
-    loop.start();
-    return () => loop.stop();
+    let running = false;
+    const start = () => { if (!running) { loop.start(); running = true; } };
+    const stop = () => { if (running) { loop.stop(); running = false; } };
+    // フォーカス時のみアニメ稼働
+    start();
+    return () => { stop(); };
   }, [swayAnim]);
 
   const initializeApp = async () => {

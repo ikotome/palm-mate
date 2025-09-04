@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
-import { Platform, TouchableOpacity, Animated, Easing, GestureResponderEvent } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { Platform, TouchableOpacity, Animated, Easing, GestureResponderEvent, InteractionManager } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
@@ -11,9 +11,12 @@ export default function RootLayout() {
   const [pulse, setPulse] = useState(0);
   type Effect = 'spin' | 'page' | 'pop' | 'bounce';
 
-  // 通知ハンドラ初期化（アプリ起動時）
+  // 通知ハンドラ初期化（遷移アニメ完了後に遅延実行）
   useEffect(() => {
-    NotificationService.init().catch(() => {});
+    const task = InteractionManager.runAfterInteractions(() => {
+      NotificationService.init().catch(() => {});
+    });
+    return () => task.cancel?.();
   }, []);
 
   const AnimatedIcon = ({
@@ -41,8 +44,8 @@ export default function RootLayout() {
       const shouldStart = focused || (pressedRoute === routeName && pulse > 0);
       if (shouldStart) {
         // 単発アニメーション。終了後に0へ戻して次回の発火に備える
-  const duration = effect === 'pop' ? 220 : effect === 'bounce' ? 280 : effect === 'page' ? 380 : 360;
-        const useNative = Platform.OS !== 'web' && effect !== 'page';
+  const duration = effect === 'pop' ? 220 : effect === 'bounce' ? 280 : effect === 'page' ? 360 : 360;
+  const useNative = Platform.OS !== 'web'; // Webは未対応
         Animated.timing(progress, {
           toValue: 1,
           duration,
@@ -54,31 +57,35 @@ export default function RootLayout() {
       }
     }, [focused, effect, progress, pressedRoute, routeName, pulse]);
 
-    const style = (() => {
+    const style = useMemo(() => {
       switch (effect) {
-    case 'spin': {
+        case 'spin': {
           const rotate = progress.interpolate({
             inputRange: [0, 1],
-      outputRange: ['0deg', '180deg'],
+            outputRange: ['0deg', '180deg'],
           });
           const scale = progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.06, 1] });
           return { transform: [{ rotate }, { scale }] };
         }
-    case 'page': {
-          // 本のページがめくれるようなY回転
-          const rotateY = progress.interpolate({
+        case 'page': {
+          // 2D回転＋移動で「ページめくり」感を強める
+          const rotate = progress.interpolate({
             inputRange: [0, 0.5, 1],
-      outputRange: ['0deg', '-60deg', '0deg'],
+            outputRange: ['0deg', '-22deg', '0deg'],
           });
           const translateX = progress.interpolate({
             inputRange: [0, 0.5, 1],
-      outputRange: [0, -4, 0],
+            outputRange: [0, -8, 0],
+          });
+          const translateY = progress.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [0, -2, 0],
           });
           const scale = progress.interpolate({
             inputRange: [0, 0.5, 1],
-      outputRange: [1, 1.08, 1],
+            outputRange: [1, 1.14, 1],
           });
-          return { transform: [{ perspective: 800 }, { rotateY }, { translateX }, { scale }] };
+          return { transform: [{ rotate }, { translateX }, { translateY }, { scale }] };
         }
         case 'pop': {
           const scale = progress.interpolate({
@@ -103,7 +110,7 @@ export default function RootLayout() {
           return { transform: [{ translateY }, { scale }] };
         }
       }
-    })();
+    }, [effect, progress]);
 
     return (
       <Animated.View style={style}>
@@ -117,33 +124,39 @@ export default function RootLayout() {
     const scale = useRef(new Animated.Value(1)).current;
     const pressAnim = () =>
       Animated.sequence([
-        Animated.timing(scale, { toValue: 0.92, duration: 70, useNativeDriver: Platform.OS !== 'web' }),
-        Animated.timing(scale, { toValue: 1, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
+  Animated.timing(scale, { toValue: 0.92, duration: 70, useNativeDriver: Platform.OS !== 'web' }),
+  Animated.timing(scale, { toValue: 1, duration: 90, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }),
       ]).start();
+    const onPressWrapped = useCallback((e: GestureResponderEvent) => {
+      pressAnim();
+      if (Platform.OS === 'ios') {
+        Haptics.selectionAsync().catch(() => {});
+      }
+      // 少し遅らせてから遷移（アニメを視認）
+      setTimeout(() => props.onPress?.(e), 40);
+    }, [props.onPress]);
     return (
       <AnimatedTouchable
         {...props}
         style={[props.style, { transform: [{ scale }] }]}
-        onPress={(e) => {
-          pressAnim();
-          if (Platform.OS === 'ios') {
-            Haptics.selectionAsync().catch(() => {});
-          }
-          // 少し遅らせてから遷移（アニメを視認）
-          setTimeout(() => props.onPress?.(e), 60);
-        }}
+        onPress={onPressWrapped}
       />
     );
   };
   return (
     <Tabs
+      detachInactiveScreens
       screenOptions={{
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.subtext,
         headerShown: false,
         tabBarShowLabel: false,
-  // Androidでキーボード表示時にタブバーが被らないよう隠す
-  tabBarHideOnKeyboard: true,
+        // Androidでキーボード表示時にタブバーが被らないよう隠す
+        tabBarHideOnKeyboard: true,
+        // 非表示中は画面ツリーをfreezeしてJS負荷を軽減
+        freezeOnBlur: true,
+        // タブはフォーカス時に初回マウント（初期負荷を軽減）
+        lazy: true,
         tabBarStyle: {
           height: Platform.OS === 'ios' ? 92 : 80,
           paddingBottom: Platform.OS === 'ios' ? 18 : 12,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Platform, DevSettings } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Platform, DevSettings, InteractionManager } from 'react-native';
 import { theme } from '../styles/theme';
 import StackChanService from '../services/StackChanService';
 import NotificationService from '../services/NotificationService';
@@ -17,15 +17,16 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     checkStackChanConnection();
-    loadUserProfile();
-    // 通知の現在状態を反映
-    (async () => {
+    const task = InteractionManager.runAfterInteractions(async () => {
+      await loadUserProfile();
+      // 通知の現在状態を反映
       try {
         await NotificationService.init();
         const on = await NotificationService.isNightlyReminderScheduled();
         setNotificationsEnabled(on);
       } catch {}
-    })();
+    });
+    return () => task.cancel?.();
   }, []);
 
   const checkStackChanConnection = () => {
