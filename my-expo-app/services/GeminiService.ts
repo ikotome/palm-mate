@@ -448,7 +448,7 @@ AI:\n${aiMessage}`;
 
       const toneGuide = this.getToneInstruction(tone);
 
-      const prompt = `あなたはAIアシスタントとして、ユーザーとの今日の会話を振り返って「今日の私」という視点で日記を書いてください。ユーザーに最適なトーンで、読みやすく記憶に残る要約を作成します。
+  const prompt = `あなたはAIアシスタントとして、ユーザーとの今日の会話を振り返って「今日の私」という視点で日記を書いてください。ユーザーに最適なトーンで、読みやすく記憶に残る要約を作成します。
 
 【今日の会話内容】
 ${conversationText}
@@ -463,15 +463,13 @@ ${toneGuide}
 - ユーザーの視点で「今日の私は...」という形で書く
 - 会話から読み取れる感情や気づきを含める
 - 成長や学びがあった点を1つ以上含める
-- 220-350文字程度（長すぎない）
-- 箇条書きは避け、流れる短文を中心に
-- 日記本文のみを出力（前置き・後置き・絵文字の乱用は避ける）`;
+- 2〜4文程度（短め）。箇条書きや不要な改行は使わない（本文のみ）。前置き・後置き・絵文字の乱用は避ける`;
 
       const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      return text.trim();
+  const response = await result.response;
+  const raw = response.text();
+  const text = raw.replace(/```[\s\S]*?```/g, '').replace(/\s+/g, ' ').trim();
+  return text;
     } catch (error: any) {
       const msg = typeof error?.message === 'string' ? error.message : String(error);
       if (msg.includes('429') || msg.toLowerCase().includes('quota')) {
@@ -482,6 +480,23 @@ ${toneGuide}
       }
       return this.getSampleJournalEntry();
     }
+  }
+
+  // 先頭N文に整形（日本語句点や !? で分割）。句点は保持し、改行は除去。
+  private keepFirstNSentences(input: string, n: number): string {
+    if (!input) return '';
+    const normalized = input.replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+    // 区切りの直後で分割（句点はトークンとして残すために split ではなくマッチで抽出）
+    const parts: string[] = [];
+    const regex = /[^。.!?！？]+[。.!?！？]?/g;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(normalized)) !== null) {
+      const seg = m[0].trim();
+      if (seg) parts.push(seg);
+      if (parts.length >= n) break;
+    }
+    if (parts.length === 0) return normalized;
+    return parts.join('');
   }
 
   async analyzeEmotion(journalContent: string): Promise<string> {
@@ -522,13 +537,8 @@ happy, excited, peaceful, thoughtful, grateful, determined, confident, curious, 
   }
 
   private getSampleJournalEntry(): string {
-    return `今日の私は、新しいことに挑戦する勇気を持てた一日でした。
-
-アプリを使って目標に向かって歩みを進めている自分を感じることができました。小さな一歩かもしれませんが、憧れの自分に近づいているという実感があります。
-
-AIと会話しながら、自分の考えを整理できたのも良かったです。時には立ち止まって振り返ることの大切さを改めて感じました。
-
-明日も今日の気持ちを大切に、一歩ずつ前進していきたいと思います。`;
+    // 3文の短いサンプル
+    return '今日の私は、小さな一歩を重ねて前に進めた。AIとの会話で考えを整理し、学びを一つメモできた。無理せず続けるために、明日は同じ時間に5分だけ振り返る。';
   }
 
   async generateChatResponse(userMessage: string, context: string = ''): Promise<string> {
