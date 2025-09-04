@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, RefreshControl, InteractionManager } from 'react-native';
 import { theme } from '../../styles/theme';
 import DatabaseService from '../../services/DatabaseService';
@@ -9,12 +9,15 @@ import { QuestList } from '../../components/QuestList';
 import { useFocusEffect } from '@react-navigation/native';
 import { jstDateString } from '../../utils/time';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'incomplete' | 'completed'>('all');
+  const [sort, setSort] = useState<'priority' | 'due' | 'created'>('priority');
 
   useEffect(() => {
     loadTasks();
@@ -162,6 +165,47 @@ export default function TasksScreen() {
     router.push(`/tasks/${task.id}`);
   };
 
+  const handleQuickSkip = async (task: Task) => {
+    try {
+      const nextStatus = task.status === 'skipped' ? 'todo' : 'skipped';
+      await DatabaseService.updateTask(task.id, { status: nextStatus });
+      await Haptics.selectionAsync();
+      await loadTasks();
+    } catch (e) {
+      console.error('Failed to quick-skip:', e);
+    }
+  };
+
+  const sortTasks = useCallback((arr: Task[]) => {
+    const priorityOrder: Record<Task['priority'], number> = { high: 0, medium: 1, low: 2 };
+    return [...arr].sort((a, b) => {
+      if (sort === 'priority') {
+        const p = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (p !== 0) return p;
+        // 同順位の場合は期限→作成日の順
+        const ad = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bd = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        if (ad !== bd) return ad - bd;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (sort === 'due') {
+        const ad = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const bd = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        if (ad !== bd) return ad - bd;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      // created
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [sort]);
+
+  const displayedTasks = useMemo(() => {
+    let arr = tasks;
+    if (filter === 'incomplete') arr = tasks.filter(t => !t.completed);
+    if (filter === 'completed') arr = tasks.filter(t => t.completed);
+    return sortTasks(arr);
+  }, [tasks, filter, sortTasks]);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -195,6 +239,42 @@ export default function TasksScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* フィルタ/ソート */}
+        <View style={styles.filtersRow}>
+          <View style={styles.chipsGroup}>
+            {([
+              { key: 'all', label: 'すべて' },
+              { key: 'incomplete', label: '未完了' },
+              { key: 'completed', label: '完了' },
+            ] as const).map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                onPress={async () => { setFilter(c.key); await Haptics.selectionAsync(); }}
+                style={[styles.chip, filter === c.key && styles.chipActive]}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={[styles.chipText, filter === c.key && styles.chipTextActive]}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.chipsGroup}>
+            {([
+              { key: 'priority', label: '優先度' },
+              { key: 'due', label: '期限' },
+              { key: 'created', label: '作成順' },
+            ] as const).map((c) => (
+              <TouchableOpacity
+                key={c.key}
+                onPress={async () => { setSort(c.key); await Haptics.selectionAsync(); }}
+                style={[styles.chip, sort === c.key && styles.chipActive]}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={[styles.chipText, sort === c.key && styles.chipTextActive]}>{c.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {userProfile && (
           <View style={styles.goalSection}>
             <Text style={styles.goalTitle}>🎯 あなたの目標</Text>
@@ -210,11 +290,12 @@ export default function TasksScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 今日のクエスト</Text>
           <QuestList
-            tasks={tasks}
+            tasks={displayedTasks}
             onToggleTask={handleTaskToggle}
             dreamSelf={userProfile?.dreamSelf}
             variant="page"
             onPressTask={handlePressTask}
+            onLongPressQuickSkip={handleQuickSkip}
           />
         </View>
       </ScrollView>
@@ -234,6 +315,12 @@ const styles = StyleSheet.create({
   generateButtonText: { color: theme.colors.surface, fontSize: 16, fontWeight: 'bold' },
   pruneButton: { backgroundColor: theme.colors.muted, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: theme.colors.border },
   pruneButtonText: { color: theme.colors.text, fontSize: 14, fontWeight: '600' },
+  filtersRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 },
+  chipsGroup: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  chip: { backgroundColor: theme.colors.muted, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: theme.colors.border },
+  chipActive: { backgroundColor: theme.colors.accent },
+  chipText: { color: theme.colors.text, fontSize: 12, fontWeight: '600' },
+  chipTextActive: { color: theme.colors.surface },
   section: { marginBottom: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.text, marginBottom: 12 },
   goalSection: { marginTop: 20, marginBottom: 30 },

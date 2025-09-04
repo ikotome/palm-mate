@@ -10,11 +10,12 @@ interface QuestListProps {
   dreamSelf?: string;
   variant?: 'drawer' | 'page';
   onPressTask?: (task: Task) => void;
+  onLongPressQuickSkip?: (task: Task) => void;
 }
 
 const { height } = Dimensions.get('window');
 
-export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dreamSelf, variant = 'drawer', onPressTask }) => {
+export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dreamSelf, variant = 'drawer', onPressTask, onLongPressQuickSkip }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [slideAnim] = useState(new Animated.Value(0));
 
@@ -66,7 +67,7 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
               data={incompleteTasks}
               keyExtractor={(item) => `incomplete-${item.id}`}
               renderItem={({ item }) => (
-                <QuestItem task={item} onToggle={onToggleTask} onPress={onPressTask} />
+                <QuestItem task={item} onToggle={onToggleTask} onPress={onPressTask} onLongPressQuickSkip={onLongPressQuickSkip} />
               )}
               showsVerticalScrollIndicator={false}
               scrollEnabled={false}
@@ -84,7 +85,7 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
               data={completedTasks}
               keyExtractor={(item) => `completed-${item.id}`}
               renderItem={({ item }) => (
-                <QuestItem task={item} onToggle={onToggleTask} onPress={onPressTask} />
+                <QuestItem task={item} onToggle={onToggleTask} onPress={onPressTask} onLongPressQuickSkip={onLongPressQuickSkip} />
               )}
               showsVerticalScrollIndicator={false}
               scrollEnabled={false}
@@ -186,7 +187,7 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
                 data={incompleteTasks}
                 keyExtractor={(item) => `incomplete-${item.id}`}
                 renderItem={({ item }) => (
-                  <QuestItem task={item} onToggle={onToggleTask} />
+                  <QuestItem task={item} onToggle={onToggleTask} onLongPressQuickSkip={onLongPressQuickSkip} />
                 )}
                 showsVerticalScrollIndicator={false}
                 scrollEnabled={false}
@@ -204,7 +205,7 @@ export const QuestList: React.FC<QuestListProps> = ({ tasks, onToggleTask, dream
                 data={completedTasks}
                 keyExtractor={(item) => `completed-${item.id}`}
                 renderItem={({ item }) => (
-                  <QuestItem task={item} onToggle={onToggleTask} />
+                  <QuestItem task={item} onToggle={onToggleTask} onLongPressQuickSkip={onLongPressQuickSkip} />
                 )}
                 showsVerticalScrollIndicator={false}
                 scrollEnabled={false}
