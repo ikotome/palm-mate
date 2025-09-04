@@ -68,6 +68,42 @@ export default function ChatScreen() {
         aiResponse: aiResponse,
         timestamp: new Date().toISOString(),
       });
+
+      // === タスク自動抽出・作成 ===
+      try {
+        const extracted = await GeminiService.extractTasksFromText(
+          userMessage.text,
+          aiResponse,
+          context ? `過去のメッセージ:\n${context}` : ''
+        );
+
+        if (extracted && extracted.length > 0) {
+          const createdTitles: string[] = [];
+          for (const t of extracted) {
+            const createdAt = new Date().toISOString();
+            await DatabaseService.addTask({
+              title: t.title,
+              description: t.description,
+              category: t.category,
+              priority: t.priority,
+              completed: false,
+              createdAt,
+            });
+            createdTitles.push(t.title);
+          }
+
+          const summaryMessage: ChatMessage = {
+            id: (Date.now() + 2).toString(),
+            text: `📝 ${createdTitles.length}件のタスクを自動追加しました:\n- ${createdTitles.join('\n- ')}`,
+            isUser: false,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, summaryMessage]);
+        }
+      } catch (extractErr) {
+        // 抽出失敗は致命的ではないためログのみ
+        console.warn('Task extraction failed:', extractErr);
+      }
     } catch (error) {
   const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),

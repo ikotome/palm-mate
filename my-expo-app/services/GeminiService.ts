@@ -26,6 +26,110 @@ class GeminiService {
     }
   }
 
+  /**
+   * チャット（ユーザー発話とAI応答）から実行可能なタスクを抽出し、
+   * title/description/category/priority(low|medium|high) の配列を返します。
+   * 抽出対象がなければ空配列。
+   */
+  async extractTasksFromText(
+    userMessage: string,
+    aiMessage: string,
+    context: string = ''
+  ): Promise<Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }>> {
+    // フォールバック: モデル未初期化時は安全に簡易抽出 or 空
+    if (!this.genAI) {
+      // ユーザー文に「タスク:」「TODO:」「やること:」行があれば簡易抽出
+      const fallback = this.simpleExtractFromText(`${context}\n${userMessage}\n${aiMessage}`);
+      return fallback;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `あなたはタスク抽出エンジンです。以下の会話文脈から、今日/今後すぐに実行可能な新規タスクのみを抽出してください。該当がなければ空配列[]を出力します。
+
+【出力要件】
+- 厳密なJSONのみを出力。説明文・コードブロック・前置きは不要。
+- 形式: [{"title": string, "description"?: string, "category"?: string, "priority": "low"|"medium"|"high"}]
+- 「提案」や「検討」だけで具体的行動が不明なものは含めない。
+- 同義重複はまとめる。
+
+【優先度の決め方】
+- すぐやる/締切が近い/重要度が高い -> high
+- 通常 -> medium
+- 余裕があれば/任意 -> low
+
+【会話文脈】
+Context:\n${context}
+User:\n${userMessage}
+AI:\n${aiMessage}`;
+
+      const result = await model.generateContent(prompt);
+      const text = (await result.response).text().trim();
+
+      // JSON抽出（コードブロック/説明を想定して頑健に）
+      const json = this.tryParseJSONArray(text);
+      if (Array.isArray(json)) {
+        return json
+          .filter((t: any) => t && t.title)
+          .map((t: any) => ({
+            title: String(t.title).trim(),
+            description: t.description ? String(t.description).trim() : undefined,
+            category: t.category ? String(t.category).trim() : undefined,
+            priority: (['low', 'medium', 'high'].includes(String(t.priority))
+              ? String(t.priority)
+              : 'medium') as 'low' | 'medium' | 'high',
+          }));
+      }
+      return [];
+    } catch (e) {
+      console.warn('extractTasksFromText failed, fallback to simple parse:', e);
+      return this.simpleExtractFromText(`${context}\n${userMessage}\n${aiMessage}`);
+    }
+  }
+
+  // できるだけ厳密JSONを取り出す
+  private tryParseJSONArray(text: string): any[] | null {
+    const candidates: string[] = [];
+    // ```json ... ```
+    const fence = text.match(/```json\s*([\s\S]*?)\s*```/i);
+    if (fence) candidates.push(fence[1]);
+    // [...] 単純配列
+    const bracket = text.match(/\[([\s\S]*)\]/);
+    if (bracket) candidates.push('[' + bracket[1] + ']');
+    // 原文全体を最後の候補に
+    candidates.push(text);
+
+    for (const c of candidates) {
+      try {
+        const parsed = JSON.parse(c);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (_) {
+        // ignore
+      }
+    }
+    return null;
+  }
+
+  // LLMなし用の簡易抽出: 行頭の「タスク:」「TODO:」「・」「- 」などからタイトル抽出
+  private simpleExtractFromText(text: string): Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }> {
+    const lines = text.split(/\r?\n/);
+    const tasks: Array<{ title: string; description?: string; category?: string; priority: 'low' | 'medium' | 'high' }> = [];
+    const regexes = [/^\s*(?:タスク|TODO|やること)\s*[:：]\s*(.+)$/i, /^\s*[・\-]\s*(.+)$/];
+    for (const line of lines) {
+      const raw = line.trim();
+      let title: string | null = null;
+      for (const r of regexes) {
+        const m = raw.match(r);
+        if (m && m[1]) { title = m[1].trim(); break; }
+      }
+      if (!title) continue;
+      if (title.length < 2) continue;
+      tasks.push({ title, priority: 'medium' });
+      if (tasks.length >= 3) break; // 暴走防止
+    }
+    return tasks;
+  }
+
   async generatePersonalizedTasks(userGoal: string, userName: string): Promise<PersonalizedTask[]> {
     if (!this.genAI) {
       console.warn('Gemini AI not initialized. Returning sample tasks.');
