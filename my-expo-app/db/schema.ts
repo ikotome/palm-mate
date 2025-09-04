@@ -7,6 +7,8 @@ export const tasks = sqliteTable('tasks', {
   title: text('title').notNull(),
   description: text('description'),
   completed: integer('completed').notNull().default(0), // 0/1
+  // 新しい三状態: todo | done | skipped
+  status: text('status').notNull().default('todo'),
   createdAt: text('created_at').notNull(), // ISO string
   completedAt: text('completed_at'),
   category: text('category'),

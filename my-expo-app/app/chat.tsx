@@ -296,6 +296,35 @@ export default function ChatScreen() {
             setMessages(prev => [...prev, confirm]);
           }
         }
+        // === タスク自動スキップ検出・反映 ===
+        try {
+          const todayTasks2 = await DatabaseService.getTodayTasks();
+          const titles2 = todayTasks2.map(t => t.title);
+          const detectedSkipped = await GeminiService.detectSkippedTasksFromText(
+            userMessage.text,
+            aiResponse,
+            titles2
+          );
+          if (detectedSkipped.length > 0) {
+            const setTitles = new Set(detectedSkipped);
+            let updated = 0;
+            for (const t of todayTasks2) {
+              if (!t.completed && setTitles.has(t.title)) {
+                await DatabaseService.updateTask(t.id, { status: 'skipped' });
+                updated++;
+              }
+            }
+            if (updated > 0) {
+              const confirm2: ChatMessage = {
+                id: (Date.now() + 8).toString(),
+                text: `⏭️ ${updated}件のタスクを「やらない」に設定しました:\n- ${detectedSkipped.join('\n- ')}`,
+                isUser: false,
+                timestamp: new Date(),
+              };
+              setMessages(prev => [...prev, confirm2]);
+            }
+          }
+        } catch {}
       } catch (autoDoneErr) {
         // 検出失敗は致命的でないので無視
       }

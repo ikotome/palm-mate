@@ -30,8 +30,9 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress })
     onToggle(task.id);
   };
 
+  const isSkipped = task.status === 'skipped';
   return (
-    <View style={[styles.container, task.completed && styles.completedContainer]}>
+    <View style={[styles.container, task.completed && styles.completedContainer, isSkipped && styles.skippedContainer]}>
       {/* 左側チェックボックス */}
       <TouchableOpacity
         onPress={handleToggle}
@@ -55,7 +56,7 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress })
       <TouchableOpacity style={styles.taskInfo} activeOpacity={0.7} onPress={() => onPress?.(task)}>
         <View style={styles.titleRow}>
           <Text
-            style={[styles.title, styles.titleFlex, task.completed && styles.completedTitle]}
+            style={[styles.title, styles.titleFlex, task.completed && styles.completedTitle, isSkipped && styles.skippedTitle]}
           >
             {task.title}
           </Text>
@@ -66,7 +67,7 @@ export const QuestItem: React.FC<QuestItemProps> = ({ task, onToggle, onPress })
           )}
         </View>
         {task.description && (
-          <Text style={[styles.description, task.completed && styles.completedDescription]}>
+          <Text style={[styles.description, task.completed && styles.completedDescription, isSkipped && styles.skippedDescription]}>
             {task.description}
           </Text>
         )}
@@ -89,6 +90,10 @@ const styles = StyleSheet.create({
   completedContainer: {
     backgroundColor: theme.colors.accentSoft,
     opacity: 0.9,
+  },
+  skippedContainer: {
+    backgroundColor: '#fafafa',
+    opacity: 0.7,
   },
   checkboxTouchable: {
     justifyContent: 'center',
@@ -152,6 +157,10 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: theme.colors.subtext,
   },
+  skippedTitle: {
+    color: theme.colors.subtext,
+    fontStyle: 'italic',
+  },
   description: {
     fontSize: 14,
     color: theme.colors.subtext,
@@ -159,6 +168,10 @@ const styles = StyleSheet.create({
   completedDescription: {
     textDecorationLine: 'line-through',
     color: theme.colors.subtext,
+  },
+  skippedDescription: {
+    color: theme.colors.subtext,
+    fontStyle: 'italic',
   },
   // ボタン関連のスタイルは削除（チェックボックスに置換）
 });

@@ -644,6 +644,71 @@ ${userMessage}`;
     }
   }
 
+  /**
+   * 会話から「今日はやらない/やめた/延期/スキップ」と読み取れるタスクを検出。
+   * 戻り値は todayTaskTitles に含まれるタイトルのうち、スキップと推定されるものの配列。
+   */
+  async detectSkippedTasksFromText(
+    userMessage: string,
+    aiMessage: string,
+    todayTaskTitles: string[]
+  ): Promise<string[]> {
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+    const safeTitles = (todayTaskTitles || []).filter(Boolean);
+    if (safeTitles.length === 0) return [];
+
+    const combined = `${userMessage}\n${aiMessage}`;
+
+    if (!this.genAI || this.isRateLimited()) {
+      return this.simpleDetectSkipped(combined, safeTitles);
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const list = safeTitles.map((t) => `- ${t}`).join('\n');
+      const prompt = `以下の会話から、当日のタスクのうち「今日はやらない/やめる/延期/スキップする」と明確に判断できるものを候補から選んでJSON配列で返してください。
+
+【候補タスクタイトル】\n${list}
+【会話】\n${combined}
+
+出力要件（厳守）:
+- JSON配列のみ。例: ["読書"]
+- 候補にないタイトルは含めない
+- あいまいな保留や検討は含めない。明確に「今日はやらない/やめた/スキップ/延期」などの意思がある場合のみ`;
+      const result = await model.generateContent(prompt);
+      const text = (await result.response).text().trim();
+      const arr = this.tryParseJSONArray(text);
+      const picked = Array.isArray(arr) ? arr.map((x) => String(x)) : [];
+      const set = new Set(safeTitles);
+      return uniq(picked.filter((t) => set.has(t)));
+    } catch (e: any) {
+      const msg = typeof e?.message === 'string' ? e.message : String(e);
+      if (msg.includes('429') || msg.toLowerCase().includes('quota')) {
+        const retrySec = this.parseRetrySecondsFromError(e);
+        this.enableRateLimitCooldown(retrySec);
+      } else {
+        console.warn('detectSkippedTasksFromText failed. Using local fallback.');
+      }
+      return this.simpleDetectSkipped(combined, safeTitles);
+    }
+  }
+
+  // ローカル簡易検出：スキップ/延期表現 + タイトル出現でマッチ
+  private simpleDetectSkipped(text: string, titles: string[]): string[] {
+    const uniq = (arr: string[]) => Array.from(new Set(arr));
+    const normalized = (s: string) => s.replace(/[\s\u3000]+/g, '').toLowerCase();
+    const body = normalized(text);
+    const skipRegex = /やらない|やめ|後回し|延期|スキップ|明日|別日に|今日は無理|今日はやめ/;
+    if (!skipRegex.test(body)) return [];
+    const out: string[] = [];
+    for (const t of titles) {
+      const key = normalized(t);
+      if (!key || key.length < 2) continue;
+      if (body.includes(key)) out.push(t);
+    }
+    return uniq(out);
+  }
+
   // ローカル簡易検出：完了表現 + タイトル出現でマッチ
   private simpleDetectCompleted(text: string, titles: string[]): string[] {
     const uniq = (arr: string[]) => Array.from(new Set(arr));

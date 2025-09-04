@@ -53,6 +53,7 @@ class DatabaseService {
         title TEXT NOT NULL,
         description TEXT,
         completed INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'todo',
         created_at TEXT NOT NULL,
         completed_at TEXT,
         category TEXT,
@@ -63,6 +64,10 @@ class DatabaseService {
     // 既存DBに due_date がなければ追加
     try {
       sqliteDb.execSync("ALTER TABLE tasks ADD COLUMN due_date TEXT");
+    } catch {}
+    // 既存DBに status がなければ追加
+    try {
+      sqliteDb.execSync("ALTER TABLE tasks ADD COLUMN status TEXT DEFAULT 'todo'");
     } catch {}
     sqliteDb.execSync(`
       CREATE TABLE IF NOT EXISTS user_profiles (
@@ -121,7 +126,7 @@ class DatabaseService {
       .select()
       .from(tasks)
       .where(and(gte(tasks.createdAt, start), lte(tasks.createdAt, end)))
-      .orderBy(asc(tasks.completed), desc(tasks.createdAt));
+  .orderBy(asc(tasks.completed), desc(tasks.createdAt));
     return rows.map(this.mapRowToTaskFromDrizzle);
   }
 
@@ -141,6 +146,7 @@ class DatabaseService {
         title: task.title,
         description: task.description ?? '',
         completed: task.completed ? 1 : 0,
+        status: task.status ?? (task.completed ? 'done' : 'todo'),
         createdAt: task.createdAt,
         category: task.category ?? '',
         priority: task.priority,
@@ -154,10 +160,25 @@ class DatabaseService {
   const set: any = {};
     if (updates.completed !== undefined) {
       set.completed = updates.completed ? 1 : 0;
+      set.status = updates.completed ? 'done' : (updates.status ?? 'todo');
       if (updates.completed) {
         set.completedAt = new Date().toISOString();
       } else {
         // 未完了に戻した場合は完了日時をクリア
+        set.completedAt = null as any;
+      }
+    }
+    if (updates.status !== undefined) {
+      set.status = updates.status;
+      // statusが直接更新された場合、completed との整合を取る
+      if (updates.status === 'done') {
+        set.completed = 1;
+        if (!set.completedAt) set.completedAt = new Date().toISOString();
+      } else if (updates.status === 'todo') {
+        set.completed = 0;
+        set.completedAt = null as any;
+      } else if (updates.status === 'skipped') {
+        set.completed = 0;
         set.completedAt = null as any;
       }
     }
@@ -313,6 +334,7 @@ class DatabaseService {
       title: row.title,
       description: row.description ?? undefined,
       completed: row.completed === 1,
+  status: (row.status as any) ?? (row.completed === 1 ? 'done' : 'todo'),
       createdAt: row.createdAt,
       completedAt: row.completedAt ?? undefined,
       category: row.category ?? undefined,
