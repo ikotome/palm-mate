@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, InteractionManager } from 'react-native';
+import TypingIndicator from '../components/TypingIndicator';
 import { theme } from '../styles/theme';
 import GeminiService from '../services/GeminiService';
 import DatabaseService from '../services/DatabaseService';
@@ -488,7 +489,7 @@ export default function ChatScreen() {
 
         {isLoading && (
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>AI が考え中...</Text>
+            <TypingIndicator />
           </View>
         )}
 
@@ -630,14 +631,11 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   loadingContainer: {
-    padding: 15,
-    alignItems: 'center',
+    padding: 12,
+    paddingTop: 0,
+    alignItems: 'flex-start',
   },
-  loadingText: {
-    fontSize: 14,
-  color: theme.colors.subtext,
-    fontStyle: 'italic',
-  },
+  // loadingText は TypingIndicator へ置換
   inputContainer: {
     flexDirection: 'row',
     padding: 15,
