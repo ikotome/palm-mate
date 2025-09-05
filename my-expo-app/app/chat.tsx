@@ -493,18 +493,6 @@ export default function ChatScreen() {
         <View style={styles.header}>
         <Text style={styles.headerTitle}>💬 AIチャット</Text>
         <Text style={styles.headerSubtitle}>何でも話しかけてくださいね</Text>
-        {__DEV__ && (
-          <TouchableOpacity
-            onPress={() =>
-              sendMessage(
-                'TODO: 牛乳を買う\n・家計簿をつける\n1) 本を10分読む\n- 写真バックアップ\nやること: メール返信'
-              )
-            }
-            style={styles.debugButton}
-          >
-            <Text style={styles.debugButtonText}>🧪 タスク抽出テスト</Text>
-          </TouchableOpacity>
-        )}
         </View>
 
         <FlatList
@@ -712,18 +700,6 @@ const styles = StyleSheet.create({
   color: theme.colors.surface,
     fontWeight: '600',
     fontSize: 16,
-  },
-  debugButton: {
-    alignSelf: 'center',
-    marginTop: 8,
-  backgroundColor: theme.colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  debugButtonText: {
-  color: theme.colors.accent,
-    fontWeight: '600',
   },
 });
 
