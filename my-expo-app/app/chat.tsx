@@ -7,6 +7,8 @@ import DatabaseService from '../services/DatabaseService';
 import { useRouter } from 'expo-router';
 import { jstDateString } from '../utils/time';
 import Markdown from 'react-native-markdown-display';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 
 interface ChatMessage {
   id: string;
@@ -30,6 +32,7 @@ export default function ChatScreen() {
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [draftPrompted, setDraftPrompted] = useState(false); // 夜の自動提案が二重起動しないように
   const draftMessageIdRef = useRef<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     // 初回にウェルカムメッセージを表示
@@ -178,6 +181,18 @@ export default function ChatScreen() {
       setMessages(prev => prev.filter(m => m.id !== draftMessageIdRef.current));
       draftMessageIdRef.current = null;
     }
+  }, []);
+
+  const copyMessageText = useCallback(async (text: string, id: string) => {
+    try {
+      await Clipboard.setStringAsync(text ?? '');
+      // 軽いフィードバック
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setCopiedId(id);
+      setTimeout(() => {
+        setCopiedId(prev => (prev === id ? null : prev));
+      }, 1500);
+    } catch {}
   }, []);
 
   const sendMessage = useCallback(async (textOverride?: string) => {
@@ -420,9 +435,21 @@ export default function ChatScreen() {
               <Text style={styles.dangerBtnText}>破棄</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.timestamp}>
-            {item.timestamp.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          {!isEditingDraft && (
+            <View style={styles.metaRow}>
+              <TouchableOpacity
+                onPress={() => copyMessageText(draftText, item.id)}
+                disabled={!draftText?.trim()}
+              >
+                <Text style={styles.copyText}>
+                  {copiedId === item.id ? 'コピーしました' : 'コピー'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={styles.timestamp}>
+                {item.timestamp.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </View>
+          )}
         </View>
       ) : (
         <View style={[
@@ -434,12 +461,19 @@ export default function ChatScreen() {
           ) : (
             <Markdown style={mdChatAI}>{item.text}</Markdown>
           )}
-          <Text style={styles.timestamp}>
-            {item.timestamp.toLocaleTimeString('ja-JP', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
-          </Text>
+          <View style={styles.metaRow}>
+            <TouchableOpacity onPress={() => copyMessageText(item.text, item.id)}>
+              <Text style={styles.copyText}>
+                {copiedId === item.id ? 'コピーしました' : 'コピー'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.timestamp}>
+              {item.timestamp.toLocaleTimeString('ja-JP', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -627,8 +661,17 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
   color: theme.colors.subtext,
-    marginTop: 4,
     textAlign: 'right',
+  },
+  metaRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  copyText: {
+    fontSize: 12,
+    color: theme.colors.subtext,
   },
   loadingContainer: {
     padding: 12,
