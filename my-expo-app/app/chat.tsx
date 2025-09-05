@@ -10,6 +10,12 @@ import Markdown from 'react-native-markdown-display';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 
+interface ChatAction {
+  label: string;
+  route: string;
+  variant?: 'primary' | 'secondary';
+}
+
 interface ChatMessage {
   id: string;
   text: string;
@@ -17,6 +23,8 @@ interface ChatMessage {
   timestamp: Date;
   // 特殊レンダリング用のタイプ（draftは下書き用カードを表示）
   type?: 'draft';
+  // チャット内で押せるアクション（作成した日記/タスクを開く等）
+  actions?: ChatAction[];
 }
 
 export default function ChatScreen() {
@@ -85,6 +93,9 @@ export default function ChatScreen() {
           text: '今日はすでに日記があります。内容を見直す場合は日記ページから編集してください。',
           isUser: false,
           timestamp: new Date(),
+          actions: [
+            { label: '今日の日記を開く', route: `/journal/${today}`, variant: 'primary' },
+          ],
         };
         setMessages(prev => [...prev, msg]);
         return;
@@ -137,13 +148,16 @@ export default function ChatScreen() {
 
       const doneMsg: ChatMessage = {
         id: 'draft-saved-' + Date.now(),
-        text: '📝 日記の下書きを保存しました。いつでも見返せます。',
+        text: '📝 日記の下書きを保存しました。以下のボタンから開けます。',
         isUser: false,
         timestamp: new Date(),
+        actions: draftDate ? [
+          { label: '日記を開く', route: `/journal/${draftDate}`, variant: 'primary' },
+        ] : [],
       };
       setMessages(prev => [...prev, doneMsg]);
       clearDraft();
-      router.push(`/journal/${draftDate}`);
+      // すぐ遷移はせず、ボタン経由で開けるようにする
     } catch (e) {
       const errMsg: ChatMessage = {
         id: 'draft-save-error-' + Date.now(),
@@ -354,7 +368,7 @@ export default function ChatScreen() {
         );
 
         if (extracted && extracted.length > 0) {
-          const createdTitles: string[] = [];
+          const created: Array<{ id: number; title: string }> = [];
           // 同日重複タイトルを回避（既存+今回生成分を含むSet）
           const existingSet = new Set(
             (await DatabaseService.getTodayTasks()).map(tt => tt.title.trim().toLowerCase())
@@ -363,7 +377,7 @@ export default function ChatScreen() {
             const key = (t.title || '').trim().toLowerCase();
             if (!key || existingSet.has(key)) continue;
             const createdAt = new Date().toISOString();
-            await DatabaseService.addTask({
+            const newId = await DatabaseService.addTask({
               title: t.title,
               description: t.description,
               category: t.category,
@@ -372,16 +386,24 @@ export default function ChatScreen() {
               createdAt,
               dueDate: t.dueDate,
             });
-            createdTitles.push(t.title);
+            created.push({ id: newId, title: t.title });
             existingSet.add(key);
           }
 
-          if (createdTitles.length > 0) {
+          if (created.length > 0) {
             const summaryMessage: ChatMessage = {
               id: (Date.now() + 2).toString(),
-              text: `📝 ${createdTitles.length}件のタスクを追加しました:\n- ${createdTitles.join('\n- ')}`,
+              text: `📝 ${created.length}件のタスクを追加しました:\n- ${created.map(c => c.title).join('\n- ')}`,
               isUser: false,
               timestamp: new Date(),
+              actions: [
+                ...created.slice(0, 3).map(c => ({
+                  label: `開く: ${c.title.length > 12 ? c.title.slice(0, 11) + '…' : c.title}`,
+                  route: `/tasks/${c.id}`,
+                  variant: 'secondary' as const,
+                })),
+                { label: 'タスク一覧を見る', route: '/tasks', variant: 'primary' },
+              ],
             };
             setMessages(prev => [...prev, summaryMessage]);
           }
@@ -461,6 +483,20 @@ export default function ChatScreen() {
           ) : (
             <Markdown style={mdChatAI}>{item.text}</Markdown>
           )}
+          {/* アクションボタン */}
+          {!item.isUser && item.actions && item.actions.length > 0 && (
+            <View style={styles.actionsRow}>
+              {item.actions.map((a, idx) => (
+                <TouchableOpacity
+                  key={`${item.id}-action-${idx}`}
+                  style={a.variant === 'primary' ? styles.primaryBtn : styles.secondaryBtn}
+                  onPress={() => router.push(a.route as any)}
+                >
+                  <Text style={a.variant === 'primary' ? styles.primaryBtnText : styles.secondaryBtnText}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
           <View style={styles.metaRow}>
             <TouchableOpacity onPress={() => copyMessageText(item.text, item.id)}>
               <Text style={styles.copyText}>
@@ -491,7 +527,7 @@ export default function ChatScreen() {
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-        <Text style={styles.headerTitle}>💬 AIチャット</Text>
+        <Text style={styles.headerTitle}>💬 オトモとの会話</Text>
         <Text style={styles.headerSubtitle}>何でも話しかけてくださいね</Text>
         </View>
 
@@ -606,6 +642,13 @@ const styles = StyleSheet.create({
   color: theme.colors.text,
   },
   draftButtonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,

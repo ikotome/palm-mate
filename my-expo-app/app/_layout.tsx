@@ -5,6 +5,8 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../styles/theme";
 import NotificationService from "../services/NotificationService";
+import * as Notifications from 'expo-notifications';
+import { router } from "expo-router";
 import { registerNightlyJob } from "../background/BackgroundJobs";
 
 export default function RootLayout() {
@@ -18,6 +20,15 @@ export default function RootLayout() {
       NotificationService.init().catch(() => {});
   // バックグラウンドの夜間ジョブを登録
   registerNightlyJob().catch(() => {});
+
+      // 通知タップでの遷移
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const data: any = response.notification.request.content.data;
+        if (data?.type === 'task-due' && typeof data.taskId !== 'undefined') {
+          const id = String(data.taskId);
+          router.push(`/tasks/${id}` as any);
+        }
+      });
     });
     return () => task.cancel?.();
   }, []);

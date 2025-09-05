@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { Task } from '../models/TaskModel';
 
 type NightlyOptions = {
   hour?: number; // local time hour
@@ -11,6 +13,8 @@ type NightlyOptions = {
 
 const NIGHTLY_DATA_TYPE = 'nightly-reminder';
 const ANDROID_CHANNEL_ID = 'default';
+const TASK_DUE_DATA_TYPE = 'task-due';
+const TASK_DUE_KEY_PREFIX = 'task-due-'; // SecureStore key prefix
 
 class NotificationService {
   private initialized = false;
@@ -139,6 +143,82 @@ class NotificationService {
       await this.cancelNightlyReminder();
       return true;
     }
+  }
+
+  // ---- Task due notifications ----
+  /**
+   * タスクの期限に1回だけ通知をスケジュールします。
+   * - dueDate が過去、completed/skipped の場合はスキップ
+   * - 既存の同タスク通知があればキャンセルして置き換え
+   * - dueDate が「YYYY-MM-DD」だけの場合は、その日の20:00で通知（仮定）
+   */
+  async scheduleTaskDueNotification(task: Task): Promise<string | null> {
+    const ok = await this.ensurePermission();
+    if (!ok) return null;
+
+    // 状態チェック
+    if (!task.dueDate) return null;
+    if (task.completed || task.status === 'skipped') {
+      await this.cancelTaskDueNotification(task.id).catch(() => {});
+      return null;
+    }
+
+    // 日付パース（YYYY-MM-DD or ISO）
+    let target = task.dueDate;
+    const onlyDate = /^\d{4}-\d{2}-\d{2}$/.test(target);
+    if (onlyDate) {
+      // 20:00 ローカル基準に仮で設定
+      target = `${target}T20:00:00`;
+    }
+    const when = new Date(target);
+    if (Number.isNaN(when.getTime())) return null;
+    if (when.getTime() <= Date.now()) {
+      // 過去はスキップ（必要なら直近数分なら即時に変える等の調整可能）
+      await this.cancelTaskDueNotification(task.id).catch(() => {});
+      return null;
+    }
+
+    // 既存をキャンセル
+    await this.cancelTaskDueNotification(task.id).catch(() => {});
+
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '⏰ 締め切りです',
+        body: task.title,
+        data: { type: TASK_DUE_DATA_TYPE, taskId: task.id },
+      },
+      trigger: (when as unknown) as Notifications.NotificationTriggerInput,
+    });
+
+    // 保存
+    try { await SecureStore.setItemAsync(TASK_DUE_KEY_PREFIX + String(task.id), identifier); } catch {}
+    return identifier;
+  }
+
+  async cancelTaskDueNotification(taskId: number): Promise<void> {
+    try {
+      const key = TASK_DUE_KEY_PREFIX + String(taskId);
+      const id = await SecureStore.getItemAsync(key);
+      if (id) {
+        await Notifications.cancelScheduledNotificationAsync(id);
+      }
+      await SecureStore.deleteItemAsync(key);
+    } catch {}
+  }
+
+  /**
+   * 渡されたタスクリストの期限通知を再構成（不要なものをキャンセルし、必要なものをスケジュール）。
+   */
+  async rescheduleDueNotificationsForTasks(list: Task[]): Promise<void> {
+    const ops: Promise<any>[] = [];
+    for (const t of list) {
+      if (t.dueDate && !t.completed && t.status !== 'skipped') {
+        ops.push(this.scheduleTaskDueNotification(t));
+      } else {
+        ops.push(this.cancelTaskDueNotification(t.id));
+      }
+    }
+    await Promise.allSettled(ops);
   }
 }
 

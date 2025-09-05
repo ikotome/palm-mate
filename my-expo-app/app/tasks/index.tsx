@@ -9,6 +9,7 @@ import { QuestList } from '../../components/QuestList';
 import { useFocusEffect } from '@react-navigation/native';
 import { jstDateString } from '../../utils/time';
 import { router } from 'expo-router';
+import NotificationService from '../../services/NotificationService';
 import * as Haptics from 'expo-haptics';
 
 export default function TasksScreen() {
@@ -49,6 +50,9 @@ export default function TasksScreen() {
     try {
       const todayTasks = await DatabaseService.getTodayTasks();
       setTasks(todayTasks);
+  // 期限通知を最新化
+  await NotificationService.init();
+  await NotificationService.rescheduleDueNotificationsForTasks(todayTasks);
     } catch (error) {
       console.error('Failed to load tasks:', error);
     }
@@ -157,6 +161,11 @@ export default function TasksScreen() {
         completed: !task.completed,
         completedAt: !task.completed ? new Date().toISOString() : undefined
       });
+      // 通知を更新
+      const updated = await DatabaseService.getTaskById(taskId);
+      if (updated) {
+        await NotificationService.scheduleTaskDueNotification(updated);
+      }
       await loadTasks();
     } catch (error) {
       console.error('Failed to toggle task:', error);
@@ -172,6 +181,11 @@ export default function TasksScreen() {
       const nextStatus = task.status === 'skipped' ? 'todo' : 'skipped';
       await DatabaseService.updateTask(task.id, { status: nextStatus });
       await Haptics.selectionAsync();
+      // 通知を更新
+      const updated = await DatabaseService.getTaskById(task.id);
+      if (updated) {
+        await NotificationService.scheduleTaskDueNotification(updated);
+      }
       await loadTasks();
     } catch (e) {
       console.error('Failed to quick-skip:', e);
